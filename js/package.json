@@ -1,0 +1,24 @@
+{
+  "name": "findcheap",
+  "version": "0.1.0",
+  "description": "Find where the product on a page is sold for less: the Findcheap API's search, extract and resolve calls.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "files": ["dist", "README.md"],
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "tsx --test test/client.test.ts",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "keywords": ["findcheap", "price comparison", "shopping", "agents", "product search"],
+  "homepage": "https://findcheap.ai/developers",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
