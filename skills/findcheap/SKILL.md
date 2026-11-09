@@ -9,6 +9,17 @@ Findcheap takes a product page's address and answers where that product is sold 
 
 The reference: https://findcheap.ai/developers/docs.md. The MCP server: https://findcheap.ai/developers/mcp.md. OpenAPI spec: https://api.findcheap.ai/v1/openapi.json.
 
+## If you were asked to set Findcheap up
+
+Do these in order, telling the user what you are doing:
+
+1. Ask the user for their API key, or point them at https://findcheap.ai/signin?next=/dashboard/keys to create one (a free account, no card). Never ask them to paste it into chat if a secret store is at hand; an environment variable is fine.
+2. Store it as `FINDCHEAP_API_KEY` in the project's environment or secret store, never in code or a commit.
+3. In a Python or JavaScript project install the SDK (`pip install findcheap` or `npm install findcheap`); otherwise use curl as below.
+4. Run the smoke test under Setup.
+5. Run one search on a product page the user names, with `max_results` 3, and show them the header (`product`, `search`) and the cheapest listings.
+6. Point them at the reference for the rest: https://findcheap.ai/developers/docs.md.
+
 ## Setup
 
 1. The key is created at https://findcheap.ai/signin?next=/dashboard/keys (a free account: 1,000 credits a month, no card). It begins with `fc_live_` and is shown once.
