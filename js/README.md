@@ -12,11 +12,11 @@ import { Findcheap, FindcheapApiError } from "findcheap";
 
 const fc = new Findcheap(); // reads FINDCHEAP_API_KEY; or new Findcheap({ apiKey: "fc_live_..." })
 
-const answer = await fc.search("https://www.jlab.com/products/jbuds-lux-anc-headphones", { max_results: 3 });
+const answer = await fc.search("https://findcheap.ai/sample-product", { max_results: 3 });
 console.log(answer.product.title, "read in", answer.search.market);
 for (const card of answer.same_product) console.log(card.price, card.currency, card.retailer, card.url ?? card.resolve_id);
 
-const page = await fc.extract("https://www.jlab.com/products/jbuds-lux-anc-headphones");
+const page = await fc.extract("https://findcheap.ai/sample-product");
 if (page.is_product_page) console.log(page.title, page.price, page.currency);
 
 const link = await fc.resolve(answer.similar_products[0].resolve_id!); // for a card whose url is null

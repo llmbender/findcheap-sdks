@@ -12,12 +12,12 @@ from findcheap import Findcheap, FindcheapApiError
 
 fc = Findcheap()  # reads FINDCHEAP_API_KEY; or Findcheap(api_key="fc_live_...")
 
-answer = fc.search("https://www.jlab.com/products/jbuds-lux-anc-headphones", max_results=3)
+answer = fc.search("https://findcheap.ai/sample-product", max_results=3)
 print(answer["product"]["title"], "read in", answer["search"]["market"])
 for card in answer["same_product"]:
     print(card["price"], card["currency"], card["retailer"], card["url"] or card["resolve_id"])
 
-page = fc.extract("https://www.jlab.com/products/jbuds-lux-anc-headphones")
+page = fc.extract("https://findcheap.ai/sample-product")
 if page["is_product_page"]:
     print(page["title"], page["price"], page["currency"])
 

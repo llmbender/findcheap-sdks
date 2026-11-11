@@ -2,7 +2,7 @@
 
     from findcheap import Findcheap
     fc = Findcheap()                      # FINDCHEAP_API_KEY in the environment
-    answer = fc.search("https://www.jlab.com/products/jbuds-lux-anc-headphones")
+    answer = fc.search("https://findcheap.ai/sample-product")
 
 Reference: https://findcheap.ai/developers/docs.md
 """

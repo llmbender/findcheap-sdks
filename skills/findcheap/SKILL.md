@@ -24,13 +24,13 @@ Do these in order, telling the user what you are doing:
 
 1. The key is created at https://findcheap.ai/signin?next=/dashboard/keys (a free account: 1,000 credits a month, no card). It begins with `fc_live_` and is shown once.
 2. Keep it in the environment as `FINDCHEAP_API_KEY` (or in the project's secret store). Never print it, never write it into code or a commit, never put it in a URL. It travels only in the `Authorization: Bearer` header.
-3. Smoke-test the key with a page read (1 credit):
+3. Smoke-test the key with a page read (1 credit). The address is Findcheap's sample product page, a copy of a real product page that does not change:
 
 ```bash
 curl -s https://api.findcheap.ai/v1/extract \
   -H "Authorization: Bearer $FINDCHEAP_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"url": "https://www.jlab.com/products/jbuds-lux-anc-headphones"}'
+  -d '{"url": "https://findcheap.ai/sample-product"}'
 ```
 
 A `401` means the key is missing or wrong; a `200` with `is_product_page: true` means you are set.
