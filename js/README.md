@@ -24,6 +24,6 @@ const link = await fc.resolve(answer.similar_products[0].resolve_id!); // for a 
 
 Every answer opens with `request_id` and closes with `credits_used`. A failed call throws `FindcheapApiError` with `status`, `type`, `message`, `credits_used`, `request_id` and `retry_after` (seconds, on a 429); a call that never reached the API throws `FindcheapConnectionError`. Both extend `FindcheapError`.
 
-Timeouts sit above the API's own ceilings (a search answers within 90 seconds, a read within 30): 100, 40 and 20 seconds for search, extract and resolve, or one `timeoutMs` for all three. Pass your own `signal` to cancel a call.
+Timeouts sit above the API's own ceilings (a search answers within 60 seconds, a read within 30): 100, 40 and 20 seconds for search, extract and resolve, or one `timeoutMs` for all three. Pass your own `signal` to cancel a call.
 
 The reference, with every field: https://findcheap.ai/developers/docs.md.

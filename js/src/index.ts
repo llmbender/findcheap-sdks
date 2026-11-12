@@ -8,7 +8,7 @@
 
 export const VERSION = "0.1.0";
 export const DEFAULT_BASE_URL = "https://api.findcheap.ai";
-// Above the API's own walls (a search answers within 90 s, a read within 30),
+// Above the API's own walls (a search answers within 60 s, a read within 30),
 // so the API's timeout envelope, not a client cut-off, is what a caller sees.
 export const SEARCH_TIMEOUT_MS = 100_000;
 export const EXTRACT_TIMEOUT_MS = 40_000;
@@ -111,7 +111,7 @@ export class Findcheap {
     if (!this.fetchFn) throw new Error("Findcheap needs fetch: Node 18+, a browser, or pass { fetch }.");
   }
 
-  /** Where the product on the page is sold for less (10 credits; up to 90 s). Only the options given travel. */
+  /** Where the product on the page is sold for less (10 credits; up to 60 s). Only the options given travel. */
   search(url: string, options: SearchOptions = {}): Promise<SearchAnswer> {
     const body: Record<string, unknown> = { url };
     if (options.market !== undefined) body.market = options.market;

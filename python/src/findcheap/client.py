@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Literal, Optional, TypedDict
 __version__ = "0.1.0"
 
 DEFAULT_BASE_URL = "https://api.findcheap.ai"
-# Above the API's own walls (a search answers within 90 s, a read within 30),
+# Above the API's own walls (a search answers within 60 s, a read within 30),
 # so the API's timeout envelope, not a client cut-off, is what a caller sees.
 SEARCH_TIMEOUT_S = 100.0
 EXTRACT_TIMEOUT_S = 40.0
@@ -146,7 +146,7 @@ class Findcheap:
 
     def search(self, url: str, *, market: Optional[str] = None, marketplaces: Optional[List[str]] = None,
                condition: Condition = "new", max_results: Optional[int] = None) -> SearchAnswer:
-        """Where the product on the page is sold for less (10 credits; up to 90 s). Only the options
+        """Where the product on the page is sold for less (10 credits; up to 60 s). Only the options
         given travel in the body, so the API's defaults apply to the rest."""
         body: Dict[str, Any] = {"url": url}
         if market is not None:
