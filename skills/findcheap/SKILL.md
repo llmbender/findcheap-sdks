@@ -61,7 +61,7 @@ The answer is ordered so the header comes first. Read it before the cards:
   "same_product": [ { "title": "…", "price": 67.5, "currency": "USD", "retailer": "Amazon", "url": "…", "over_page_price": false, "coupon": null, "promo_code": null } ],
   "similar_products": [ { "title": "…", "price": 49.99, "retailer": "Walmart", "url": null, "resolve_id": "7c1f…", "over_page_price": false } ],
   "page_is_cheapest": false,
-  "next_steps": [ { "label": "Find pre-owned options", "tool": "find_cheaper", "arguments": { "url": "<as sent>", "market": "US", "condition": "used" }, "choose": null } ],
+  "next_steps": [ { "label": "Find pre-owned", "tool": "find_cheaper", "arguments": { "url": "<as sent>", "market": "US", "condition": "used" }, "choose": null } ],
   "credits_used": 10
 }
 ```
