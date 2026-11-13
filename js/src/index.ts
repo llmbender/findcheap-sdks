@@ -27,6 +27,8 @@ export interface SearchEcho { url: string; market: string; condition: Condition;
 export interface Product {
   title: string | null; image: string | null; price: number | null; currency: string | null;
   brand: string | null; url: string; market: string; in_stock: boolean | null;
+  /** In a search answer only. The units in the page product's pack (42 for a 42-count tub): the quantity each listing's normalized_price is adjusted to. Null for a single item or no count read. */
+  pack_count?: number | null;
 }
 
 /** One listing elsewhere. `url` null means a `resolve_id` to pass to resolve(). */

@@ -5,7 +5,7 @@ import { after, before, test } from "node:test";
 import { Findcheap, FindcheapApiError, FindcheapConnectionError } from "../src/index.ts";
 
 const SEARCH = { request_id: "r-1", search: { url: "https://shop.example.com/p/1", market: "US", condition: "new", max_results: 3 },
-  product: { title: "Kettle", image: null, price: 29.99, currency: "USD", brand: "Acme", url: "https://shop.example.com/p/1", market: "US", in_stock: true },
+  product: { title: "Kettle", image: null, price: 29.99, currency: "USD", brand: "Acme", url: "https://shop.example.com/p/1", market: "US", in_stock: true, pack_count: null },
   product_name: "Acme Kettle",
   about_lists: "same_product holds listings that match the original product; a different colour or pack size still counts as the same product. similar_products holds acceptable equivalent products from any brand.",
   same_product: [{ title: "Kettle", price: 19, currency: "USD", url: "https://w/x", image: "i", retailer: "eBay", over_page_price: false }],

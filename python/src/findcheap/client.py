@@ -47,6 +47,9 @@ class Product(TypedDict):
     url: str
     market: str
     in_stock: Optional[bool]
+    # The units in the page product's pack (42 for a 42-count tub): the quantity each
+    # listing's normalized_price is adjusted to. None for a single item or no count read.
+    pack_count: Optional[int]
 
 
 class Card(TypedDict, total=False):
