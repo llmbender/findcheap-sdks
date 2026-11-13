@@ -2,8 +2,10 @@
  * The Findcheap API in TypeScript: three POSTs over fetch, the answer as
  * the API sends it. Nothing is reshaped: a search answer opens with
  * `request_id` and `search` (what was searched), then `product`,
- * `product_name`, `same_product`, `similar_products`, `page_is_cheapest`,
- * `credits_used`. Reference: https://findcheap.ai/developers/docs.md
+ * `product_name`, `about_lists` (one sentence saying what the two lists
+ * hold for this search), `same_product`, `similar_products`,
+ * `page_is_cheapest`, `credits_used`.
+ * Reference: https://findcheap.ai/developers/docs.md
  */
 
 export const VERSION = "0.1.0";
@@ -40,6 +42,8 @@ export interface Card {
 
 export interface SearchAnswer {
   request_id: string; search: SearchEcho; product: Product; product_name: string | null;
+  /** What the two lists hold for this search, in a sentence or two. Read it before the lists. */
+  about_lists: string;
   same_product: Card[]; similar_products: Card[]; page_is_cheapest: boolean; credits_used: number;
 }
 

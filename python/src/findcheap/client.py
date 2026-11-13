@@ -1,7 +1,8 @@
 """The client: three POSTs over urllib, the answer as the API sends it.
 
 Nothing is reshaped. A search answer opens with `request_id` and `search`
-(what was searched), then `product`, `product_name`, `same_product`,
+(what was searched), then `product`, `product_name`, `about_lists` (one
+sentence saying what the two lists hold for this search), `same_product`,
 `similar_products`, `page_is_cheapest`, `credits_used`; the TypedDicts
 below name the fields for an editor, and `extra="allow"` on the API's
 side means a field added later arrives here untouched.
@@ -74,6 +75,7 @@ class SearchAnswer(TypedDict):
     search: SearchEcho
     product: Product
     product_name: Optional[str]
+    about_lists: str                  # what the two lists hold for this search; read it before them
     same_product: List[Card]
     similar_products: List[Card]
     page_is_cheapest: bool
