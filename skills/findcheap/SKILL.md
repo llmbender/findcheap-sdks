@@ -84,7 +84,7 @@ Every error is an HTTP status with one shape: `{"error": {"type", "message", "cr
 
 ## The MCP server instead of the API
 
-For an assistant in a conversation (Claude, Claude Code, Cursor), connect `https://mcp.findcheap.ai/mcp` (Streamable HTTP) with the same key in the `Authorization` header, or sign in with a Findcheap account from Claude.ai. The tools `find_cheaper`, `read_product_page` and `resolve_listing` take the same parameters and return the same JSON as the API, with progress notifications while a search runs.
+For an assistant in a conversation (Claude, Claude Code, Cursor), connect `https://mcp.findcheap.ai/mcp` (Streamable HTTP) with the same key in the `Authorization` header, or sign in with a Findcheap account from Claude.ai. The tools `find_cheaper`, `read_product_page` and `resolve_listing` take the same parameters and return the same JSON as the API, with progress notifications while a search runs. One difference: `request_id` and `credits_used` are not in a tool's answer; they are in the result's `_meta`, as `ai.findcheap/request_id` and `ai.findcheap/credits_used`.
 
 ```bash
 claude mcp add --transport http findcheap https://mcp.findcheap.ai/mcp \
