@@ -17,7 +17,9 @@ SEARCH = {"request_id": "r-1", "search": {"url": "https://shop.example.com/p/1",
           "product_name": "Acme Kettle",
           "about_lists": "same_product holds listings that match the original product; a different colour or pack size still counts as the same product. similar_products holds acceptable equivalent products from any brand.",
           "same_product": [{"title": "Kettle", "price": 19.0, "currency": "USD", "url": "https://w/x", "image": "i", "retailer": "eBay", "over_page_price": False}],
-          "similar_products": [], "page_is_cheapest": False, "credits_used": 10}
+          "similar_products": [], "page_is_cheapest": False,
+          "next_steps": [{"label": "Find pre-owned options", "tool": "find_cheaper", "arguments": {"url": "https://shop.example.com/p/1", "market": "US", "condition": "used"}, "choose": None}],
+          "credits_used": 10}
 READ = {"request_id": "r-2", "is_product_page": True, "url": "https://shop.example.com/p/1", "market": "US", "title": "Kettle", "image": None,
         "price": 29.99, "currency": "USD", "brand": "Acme", "in_stock": True, "reason": None, "credits_used": 1}
 RESOLVE = {"request_id": "r-3", "resolved": True, "url": "https://merchant/x", "retailer": "Walmart", "credits_used": 1}
@@ -71,7 +73,8 @@ class ClientTest(unittest.TestCase):
         self.assertEqual(body, {"url": "https://shop.example.com/p/1", "max_results": 3})
         self.assertEqual(headers["Authorization"], "Bearer fc_live_test")
         self.assertTrue(headers["User-Agent"].startswith("findcheap-python/"))
-        self.assertEqual(list(out), ["request_id", "search", "product", "product_name", "about_lists", "same_product", "similar_products", "page_is_cheapest", "credits_used"])
+        self.assertEqual(list(out), ["request_id", "search", "product", "product_name", "about_lists", "same_product", "similar_products", "page_is_cheapest", "next_steps", "credits_used"])
+        self.assertEqual(out["next_steps"][0]["arguments"]["condition"], "used")
         self.assertEqual(out["credits_used"], 10)
 
     def test_search_options_travel_as_the_api_takes_them(self):

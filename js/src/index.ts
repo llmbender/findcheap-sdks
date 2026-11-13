@@ -4,7 +4,8 @@
  * `request_id` and `search` (what was searched), then `product`,
  * `product_name`, `about_lists` (one sentence saying what the two lists
  * hold for this search), `same_product`, `similar_products`,
- * `page_is_cheapest`, `credits_used`.
+ * `page_is_cheapest`, `next_steps` (what can be done next, each with the
+ * call that does it), `credits_used`.
  * Reference: https://findcheap.ai/developers/docs.md
  */
 
@@ -32,7 +33,7 @@ export interface Product {
 export interface Card {
   title: string; price: number; currency: string; url: string | null; resolve_id?: string | null;
   image: string; retailer: string; rating?: number | null; ratings_count?: number | null;
-  /** same_product cards only: true at or over the page's price, false cheaper, null when the page had no price. */
+  /** True at or over the page's price, false cheaper, null when the page had no price. On cards of both lists. */
   over_page_price?: boolean | null;
   unit_size?: string | null; pack_count?: number | null; normalized_price?: number | null;
   coupon?: string | null; promo_code?: string | null; price_before_discount?: number | null;
@@ -40,11 +41,26 @@ export interface Card {
   [extra: string]: unknown;
 }
 
+/** One thing that can be done next for the product, with the call that does it. */
+export interface NextStep {
+  /** The step in a few words, as a person reads it. Also the words for a button. */
+  label: string;
+  /** The MCP tool that runs it. On the API, find_cheaper is search(). */
+  tool: string;
+  /** The fields to send. */
+  arguments: Record<string, unknown>;
+  /** Only on a step that needs a choice, else null: the market's stores under `marketplaces`. Send the ones to keep. */
+  choose: { marketplaces?: string[]; [extra: string]: unknown } | null;
+}
+
 export interface SearchAnswer {
   request_id: string; search: SearchEcho; product: Product; product_name: string | null;
   /** What the two lists hold for this search, in a sentence or two. Read it before the lists. */
   about_lists: string;
-  same_product: Card[]; similar_products: Card[]; page_is_cheapest: boolean; credits_used: number;
+  same_product: Card[]; similar_products: Card[]; page_is_cheapest: boolean;
+  /** What can be done next. Do one yourself when it serves the user's task, or offer them as next steps. */
+  next_steps: NextStep[];
+  credits_used: number;
 }
 
 export interface ReadAnswer extends Product {

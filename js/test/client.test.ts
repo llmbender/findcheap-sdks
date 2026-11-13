@@ -9,7 +9,9 @@ const SEARCH = { request_id: "r-1", search: { url: "https://shop.example.com/p/1
   product_name: "Acme Kettle",
   about_lists: "same_product holds listings that match the original product; a different colour or pack size still counts as the same product. similar_products holds acceptable equivalent products from any brand.",
   same_product: [{ title: "Kettle", price: 19, currency: "USD", url: "https://w/x", image: "i", retailer: "eBay", over_page_price: false }],
-  similar_products: [], page_is_cheapest: false, credits_used: 10 };
+  similar_products: [], page_is_cheapest: false,
+  next_steps: [{ label: "Find pre-owned options", tool: "find_cheaper", arguments: { url: "https://shop.example.com/p/1", market: "US", condition: "used" }, choose: null }],
+  credits_used: 10 };
 const READ = { request_id: "r-2", is_product_page: true, url: "https://shop.example.com/p/1", market: "US", title: "Kettle", image: null, price: 29.99, currency: "USD", brand: "Acme", in_stock: true, reason: null, credits_used: 1 };
 const RESOLVE = { request_id: "r-3", resolved: true, url: "https://merchant/x", retailer: "Walmart", credits_used: 1 };
 const seen: { path: string; headers: IncomingMessage["headers"]; body: Record<string, unknown> }[] = [];
@@ -48,7 +50,8 @@ test("search sends only what was given and returns the answer as is", async () =
   assert.deepEqual(last.body, { url: "https://shop.example.com/p/1", max_results: 3 });
   assert.equal(last.headers.authorization, "Bearer fc_live_test");
   assert.match(String(last.headers["user-agent"]), /^findcheap-js\//);
-  assert.deepEqual(Object.keys(out), ["request_id", "search", "product", "product_name", "about_lists", "same_product", "similar_products", "page_is_cheapest", "credits_used"]);
+  assert.deepEqual(Object.keys(out), ["request_id", "search", "product", "product_name", "about_lists", "same_product", "similar_products", "page_is_cheapest", "next_steps", "credits_used"]);
+  assert.equal(out.next_steps[0].arguments.condition, "used");
   assert.equal(out.credits_used, 10);
 });
 

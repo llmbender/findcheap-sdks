@@ -3,7 +3,8 @@
 Nothing is reshaped. A search answer opens with `request_id` and `search`
 (what was searched), then `product`, `product_name`, `about_lists` (one
 sentence saying what the two lists hold for this search), `same_product`,
-`similar_products`, `page_is_cheapest`, `credits_used`; the TypedDicts
+`similar_products`, `page_is_cheapest`, `next_steps` (what can be done
+next, each with the call that does it), `credits_used`; the TypedDicts
 below name the fields for an editor, and `extra="allow"` on the API's
 side means a field added later arrives here untouched.
 """
@@ -59,7 +60,7 @@ class Card(TypedDict, total=False):
     retailer: str
     rating: Optional[float]
     ratings_count: Optional[int]
-    over_page_price: Optional[bool]   # same_product cards only
+    over_page_price: Optional[bool]   # True at or over the page's price, False cheaper, None when the page had no price
     unit_size: Optional[str]
     pack_count: Optional[int]
     normalized_price: Optional[float]
@@ -68,6 +69,14 @@ class Card(TypedDict, total=False):
     price_before_discount: Optional[float]
     discount_type: Optional[str]
     discount_value: Optional[float]
+
+
+class NextStep(TypedDict):
+    """One thing that can be done next for the product, with the call that does it."""
+    label: str                        # the step in a few words, as a person reads it; also a button's words
+    tool: str                         # the MCP tool that runs it; on the API, find_cheaper is search()
+    arguments: Dict[str, Any]         # the fields to send
+    choose: Optional[Dict[str, Any]]  # on a step that needs a choice: {"marketplaces": [the market's stores]}; send the ones to keep
 
 
 class SearchAnswer(TypedDict):
@@ -79,6 +88,7 @@ class SearchAnswer(TypedDict):
     same_product: List[Card]
     similar_products: List[Card]
     page_is_cheapest: bool
+    next_steps: List[NextStep]        # do one yourself when it serves the user's task, or offer them as next steps
     credits_used: int
 
 
