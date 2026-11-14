@@ -68,7 +68,10 @@ export interface SearchAnswer {
 }
 
 export interface ReadAnswer extends Product {
-  request_id: string; is_product_page: boolean; reason: string | null; credits_used: number;
+  request_id: string; is_product_page: boolean; reason: string | null;
+  /** What can be done next: the search for this product ("Find this cheaper"). Empty when the page cannot be searched. */
+  next_steps: NextStep[];
+  credits_used: number;
 }
 
 export interface ResolveAnswer { request_id: string; resolved: boolean; url: string | null; retailer: string | null; credits_used: number }

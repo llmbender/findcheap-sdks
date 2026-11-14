@@ -42,7 +42,7 @@ All are `POST https://api.findcheap.ai/v1/<call>` with a JSON body and a JSON an
 | Call | Body | Answers | Credits | Time |
 | --- | --- | --- | --- | --- |
 | `/v1/search` | `url`, optional `market`, `marketplaces`, `condition` (`new` / `used`), `max_results` (1–10) | the header, `product`, `about_lists`, `same_product`, `similar_products`, `page_is_cheapest`, `next_steps` | 10 | up to 60 s, usually 15–30 |
-| `/v1/extract` | `url`, optional `market` | `is_product_page`, title, image, price, currency, brand, in_stock, `reason` | 1 | up to 30 s, median 4 |
+| `/v1/extract` | `url`, optional `market` | `is_product_page`, title, image, price, currency, brand, in_stock, `reason`, `next_steps` | 1 | up to 30 s, median 4 |
 | `/v1/resolve` | `id` (a card's `resolve_id`) | `resolved`, `url`, `retailer` | 1 when a link came back, else 0 | about 1 s |
 
 Set the HTTP client's timeout above the call's ceiling: 100 s for a search, 40 s for a read. `market` is the shopper's country (US, CA, AU, IN, GLOBAL); omit it and the address decides (`.in` → IN, `.ca` → CA, else US). Ask for `max_results: 3` when only the cheapest few matter; the credits are the same.

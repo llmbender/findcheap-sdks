@@ -118,6 +118,7 @@ class ReadAnswer(TypedDict):
     coupon: Optional[str]
     promo_code: Optional[str]
     reason: Optional[str]
+    next_steps: List[NextStep]        # the search for this product ("Find this cheaper"); empty when the page cannot be searched
     credits_used: int
 
 
