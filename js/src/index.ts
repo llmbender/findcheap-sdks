@@ -29,6 +29,9 @@ export interface Product {
   brand: string | null; url: string; market: string; in_stock: boolean | null;
   /** The page's own coupon: the marketplace the page belongs to ("Amazon", "Flipkart", "eBay"; null for any other store's page), the coupon or promo code found on the page ("10% coupon", "$5 coupon"; `price` is the page's price before it) and the code to enter at checkout when the coupon is a promo code. Null when there is none. */
   retailer?: string | null; coupon?: string | null; promo_code?: string | null;
+  /** What the listing costs to ship and its return terms, each null when the page's store states none: the shipping cost within the market's country without a paid membership (0 when it ships free; `price` does not include it), whether the seller accepts returns (eBay listings today), the days the buyer has, and who pays the return shipping. */
+  shipping_cost?: number | null; returns_accepted?: boolean | null; return_days?: number | null;
+  return_shipping_paid_by?: "buyer" | "seller" | null;
   /** In a search answer only. The units in the page product's pack (42 for a 42-count tub): the quantity each listing's normalized_price is adjusted to. Null for a single item or no count read. */
   pack_count?: number | null;
 }
@@ -42,6 +45,8 @@ export interface Card {
   unit_size?: string | null; pack_count?: number | null; normalized_price?: number | null;
   coupon?: string | null; promo_code?: string | null; price_before_discount?: number | null;
   discount_type?: "percent" | "fixed" | null; discount_value?: number | null;
+  /** What the retailer charges to ship the listing within the market's country, without a paid membership: 0 when it ships free, null when unknown. `price` does not include it. */
+  shipping_cost?: number | null;
   [extra: string]: unknown;
 }
 

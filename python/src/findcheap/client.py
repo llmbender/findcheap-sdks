@@ -54,6 +54,15 @@ class Product(TypedDict):
     retailer: Optional[str]
     coupon: Optional[str]
     promo_code: Optional[str]
+    # What the listing costs to ship and its return terms, each None when the page's store
+    # states none: the shipping cost within the market's country without a paid membership
+    # (0 when it ships free; `price` does not include it), whether the seller accepts
+    # returns (eBay listings today), the days the buyer has, and who pays the return
+    # shipping ("buyer" or "seller").
+    shipping_cost: Optional[float]
+    returns_accepted: Optional[bool]
+    return_days: Optional[int]
+    return_shipping_paid_by: Optional[str]
     # The units in the page product's pack (42 for a 42-count tub): the quantity each
     # listing's normalized_price is adjusted to. None for a single item or no count read.
     pack_count: Optional[int]
@@ -79,6 +88,7 @@ class Card(TypedDict, total=False):
     price_before_discount: Optional[float]
     discount_type: Optional[str]
     discount_value: Optional[float]
+    shipping_cost: Optional[float]    # what the retailer charges to ship it: 0 = free, None = unknown; `price` does not include it
 
 
 class NextStep(TypedDict):
@@ -117,6 +127,11 @@ class ReadAnswer(TypedDict):
     retailer: Optional[str]
     coupon: Optional[str]
     promo_code: Optional[str]
+    # The listing's shipping cost and return terms, as in Product above.
+    shipping_cost: Optional[float]
+    returns_accepted: Optional[bool]
+    return_days: Optional[int]
+    return_shipping_paid_by: Optional[str]
     reason: Optional[str]
     next_steps: List[NextStep]        # the search for this product ("Find this cheaper"); empty when the page cannot be searched
     credits_used: int
