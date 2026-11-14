@@ -47,6 +47,13 @@ class Product(TypedDict):
     url: str
     market: str
     in_stock: Optional[bool]
+    # The page's own coupon: the marketplace the page belongs to ("Amazon", "Flipkart",
+    # "eBay"; None for any other store's page), the coupon or promo code found on the
+    # page ("10% coupon", "$5 coupon"; `price` is the page's price before it) and the
+    # code to enter at checkout when the coupon is a promo code. None when there is none.
+    retailer: Optional[str]
+    coupon: Optional[str]
+    promo_code: Optional[str]
     # The units in the page product's pack (42 for a 42-count tub): the quantity each
     # listing's normalized_price is adjusted to. None for a single item or no count read.
     pack_count: Optional[int]
@@ -106,6 +113,10 @@ class ReadAnswer(TypedDict):
     currency: Optional[str]
     brand: Optional[str]
     in_stock: Optional[bool]
+    # The page's own coupon, as in Product above.
+    retailer: Optional[str]
+    coupon: Optional[str]
+    promo_code: Optional[str]
     reason: Optional[str]
     credits_used: int
 

@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from findcheap import Findcheap, FindcheapApiError, FindcheapConnectionError  # noqa: E402
 
 SEARCH = {"request_id": "r-1", "search": {"url": "https://shop.example.com/p/1", "market": "US", "condition": "new", "max_results": 3},
-          "product": {"title": "Kettle", "image": None, "price": 29.99, "currency": "USD", "brand": "Acme", "url": "https://shop.example.com/p/1", "market": "US", "in_stock": True, "pack_count": None},
+          "product": {"title": "Kettle", "image": None, "price": 29.99, "currency": "USD", "brand": "Acme", "url": "https://shop.example.com/p/1", "market": "US", "in_stock": True, "retailer": "Amazon", "coupon": "10% coupon", "promo_code": None, "pack_count": None},
           "product_name": "Acme Kettle",
           "about_lists": "same_product holds listings that match the original product; a different colour or pack size still counts as the same product. similar_products holds acceptable equivalent products from any brand.",
           "same_product": [{"title": "Kettle", "price": 19.0, "currency": "USD", "url": "https://w/x", "image": "i", "retailer": "eBay", "over_page_price": False}],
@@ -21,7 +21,7 @@ SEARCH = {"request_id": "r-1", "search": {"url": "https://shop.example.com/p/1",
           "next_steps": [{"label": "Find pre-owned", "tool": "find_cheaper", "arguments": {"url": "https://shop.example.com/p/1", "market": "US", "condition": "used"}, "choose": None}],
           "credits_used": 10}
 READ = {"request_id": "r-2", "is_product_page": True, "url": "https://shop.example.com/p/1", "market": "US", "title": "Kettle", "image": None,
-        "price": 29.99, "currency": "USD", "brand": "Acme", "in_stock": True, "reason": None, "credits_used": 1}
+        "price": 29.99, "currency": "USD", "brand": "Acme", "in_stock": True, "retailer": "eBay", "coupon": "$5 coupon", "promo_code": "SHOPNOW15", "reason": None, "credits_used": 1}
 RESOLVE = {"request_id": "r-3", "resolved": True, "url": "https://merchant/x", "retailer": "Walmart", "credits_used": 1}
 seen = []
 
