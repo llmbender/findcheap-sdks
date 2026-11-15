@@ -17,7 +17,7 @@ import urllib.error
 import urllib.request
 from typing import Any, Dict, List, Literal, Optional, TypedDict
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 DEFAULT_BASE_URL = "https://api.findcheap.ai"
 # Above the API's own walls (a search answers within 60 s, a read within 30),

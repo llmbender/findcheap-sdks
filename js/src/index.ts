@@ -9,7 +9,7 @@
  * Reference: https://findcheap.ai/developers/docs.md
  */
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.2.0";
 export const DEFAULT_BASE_URL = "https://api.findcheap.ai";
 // Above the API's own walls (a search answers within 60 s, a read within 30),
 // so the API's timeout envelope, not a client cut-off, is what a caller sees.
