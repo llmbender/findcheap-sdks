@@ -1,5 +1,7 @@
-<!-- Findcheap's mark on a square canvas: the file served as https://findcheap.ai/icon.svg. -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -256 1536 1536" fill="none">
+<!-- Findcheap's mark on a white square plate (Cursor's Marketplace asks for a 1:1 logo "with background plate").
+     The artwork is the website's (https://findcheap.ai/icon.svg). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-192 -448 1920 1920" fill="none">
+  <rect x="-192" y="-448" width="1920" height="1920" fill="#fff"/>
   <defs>
     <linearGradient id="binocularGradient" x1="0" y1="0" x2="1536" y2="0" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#1853FF"/>
