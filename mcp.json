@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "findcheap": {
+      "type": "http",
+      "url": "https://mcp.findcheap.ai/mcp",
+      "auth": {
+        "CLIENT_ID": "3e10d062-c366-4f8c-a85d-b87395178793"
+      }
+    }
+  }
+}

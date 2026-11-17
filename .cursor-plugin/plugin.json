@@ -1,0 +1,27 @@
+{
+  "name": "findcheap",
+  "displayName": "Findcheap",
+  "version": "1.0.0",
+  "description": "Find products at lower prices and fetch product data.",
+  "author": {
+    "name": "Findcheap"
+  },
+  "homepage": "https://findcheap.ai/developers/mcp",
+  "repository": "https://github.com/llmbender/findcheap-sdks",
+  "license": "MIT",
+  "logo": "assets/logo.svg",
+  "keywords": [
+    "findcheap",
+    "shopping",
+    "price comparison",
+    "deals",
+    "mcp"
+  ],
+  "category": "integrations",
+  "tags": [
+    "findcheap",
+    "shopping",
+    "mcp"
+  ],
+  "mcpServers": "./mcp.json"
+}
