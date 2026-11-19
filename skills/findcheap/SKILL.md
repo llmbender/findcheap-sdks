@@ -97,10 +97,45 @@ Use this when the user still needs to sign up, sign in or obtain an API key. A p
 
 If a valid `FINDCHEAP_API_KEY` is already in the environment or in the project's `.env`, skip this path. Check without printing it: `test -n "$FINDCHEAP_API_KEY" && echo set`, or `grep -c '^FINDCHEAP_API_KEY=.' .env`.
 
-1. The user creates an account or signs in, and creates the key, at https://findcheap.ai/signin?next=/dashboard/keys (a free account: 1,000 credits a month, no card). The key begins with `fc_live_` and is shown once.
-2. Get the key into the project's environment without it passing through the chat where you can: make sure `.env` is listed in `.gitignore`, add the line `FINDCHEAP_API_KEY=` to `.env`, and ask the user to paste the key after the `=` and save the file. Where the user cannot edit your working folder (a cloud session), ask them to add `FINDCHEAP_API_KEY` to that environment's secrets. If they paste the key into the chat instead, save it the same way and do not repeat it.
-3. Keep it in the environment as `FINDCHEAP_API_KEY` (or in the project's secret store). Never print it, never write it into code or a commit, never put it in a URL. It travels only in the `Authorization: Bearer` header.
-4. Smoke-test the key with a page read (1 credit). The address is Findcheap's sample product page, a copy of a real product page that does not change. If the key is in `.env`, load it into the command's environment first (`set -a; . ./.env; set +a`):
+This is the default way for a coding agent to get a key: the user approves once in the browser and the key comes to you by itself. They copy and paste nothing.
+
+**Step 1. Make the link.** Make sure `.env` is listed in `.gitignore`, then run:
+
+```bash
+umask 077
+SESSION_ID=$(openssl rand -hex 32)
+CODE_VERIFIER=$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=\n' | head -c 43)
+CODE_CHALLENGE=$(printf '%s' "$CODE_VERIFIER" | openssl dgst -sha256 -binary | openssl base64 -A | tr '+/' '-_' | tr -d '=')
+printf '%s %s\n' "$SESSION_ID" "$CODE_VERIFIER" > "${TMPDIR:-/tmp}/findcheap-auth"
+echo "https://findcheap.ai/agent-auth?code_challenge=$CODE_CHALLENGE#session_id=$SESSION_ID"
+```
+
+**Step 2. Ask the user to open the link it printed,** on any device. If they have a Findcheap account they sign in, or press Allow when they are already signed in. If not, they create one on that page (free: 1,000 credits a month, no card). Nothing else is asked of them.
+
+**Step 3. Collect the key.** Run this right after giving them the link, without waiting for a reply. It asks every 3 seconds, for up to 10 minutes, and saves the key to `.env` without printing it:
+
+```bash
+read -r SESSION_ID CODE_VERIFIER < "${TMPDIR:-/tmp}/findcheap-auth"
+for i in $(seq 1 200); do
+  R=$(curl -s https://findcheap.ai/api/agent-auth/status -H "Content-Type: application/json" \
+    -d "{\"session_id\":\"$SESSION_ID\",\"code_verifier\":\"$CODE_VERIFIER\"}")
+  case "$R" in
+    *'"complete"'*) printf 'FINDCHEAP_API_KEY=%s\n' "$(printf '%s' "$R" | sed -E 's/.*"apiKey": ?"([^"]+)".*/\1/')" >> .env
+      : > "${TMPDIR:-/tmp}/findcheap-auth"; echo "key saved to .env"; break ;;
+    *'"failed"'*) : > "${TMPDIR:-/tmp}/findcheap-auth"; echo "$R"; break ;;
+  esac
+  sleep 3
+done
+```
+
+It prints `key saved to .env` when it is done. If your command tool stops it before the user has approved, run step 3 again: it goes on with the same link. A `failed` answer names why: `expired` (the 10 minutes passed: start again at step 1), `key_limit` (the account already holds the keys its plan allows: the user revokes one at https://findcheap.ai/dashboard/keys, or gives you the key they have), `already_collected` (this link's key was handed out before).
+
+**By hand instead** (no shell, or the user prefers it): the user creates the key at https://findcheap.ai/signin?next=/dashboard/keys (it begins with `fc_live_` and is shown once) and puts it in `.env` as `FINDCHEAP_API_KEY=...`, or in the environment's secrets for a cloud session. If they paste the key into the chat instead, save it the same way and do not repeat it.
+
+**Then, whichever way the key came:**
+
+1. Keep it in the environment as `FINDCHEAP_API_KEY` (or in the project's secret store). Never print it, never write it into code or a commit, never put it in a URL. It travels only in the `Authorization: Bearer` header.
+2. Smoke-test the key with a page read (1 credit). The address is Findcheap's sample product page, a copy of a real product page that does not change. If the key is in `.env`, load it into the command's environment first (`set -a; . ./.env; set +a`):
 
 ```bash
 curl -s -w "\n%{http_code}\n" https://api.findcheap.ai/v1/extract \
