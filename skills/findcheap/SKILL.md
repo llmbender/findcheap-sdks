@@ -21,7 +21,13 @@ Set up one Findcheap connection in the app you are running in, in this order, an
    | **Claude** | a custom connector that signs the user in (Path E) |
    | **Cursor** | an `mcp.json` entry that signs the user in (Path E) |
 
-2. **MCP server with an API key (Claude Code, other MCP clients and coding assistants).** Reuse a working Findcheap connection: if `find_cheaper` is among your tools, under any prefix, it is connected. Otherwise get a key (Path C) and add the server `https://mcp.findcheap.ai/mcp` (Streamable HTTP) with the key in the `Authorization: Bearer` header, through the app's own command or settings. In Claude Code, with the key loaded into the shell's environment:
+2. **MCP server (Claude Code, other MCP clients and coding assistants).** Reuse a working Findcheap connection: if `find_cheaper` is among your tools, under any prefix, it is connected. Otherwise add the server `https://mcp.findcheap.ai/mcp` (Streamable HTTP) through the app's own command or settings, with no API key, and let the user complete the sign-in in their browser. In Claude Code:
+
+   ```bash
+   claude mcp add --transport http findcheap https://mcp.findcheap.ai/mcp
+   ```
+
+   Then the user signs in: `/mcp` inside Claude Code, or `claude mcp login findcheap` in their own terminal. Where nobody can complete a sign-in in a browser (a background or cloud agent), use an API key instead: get one (Path C) and add the server with the key in the `Authorization: Bearer` header. In Claude Code, with the key loaded into the shell's environment:
 
    ```bash
    claude mcp add --transport http findcheap https://mcp.findcheap.ai/mcp \
