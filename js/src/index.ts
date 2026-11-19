@@ -1,21 +1,23 @@
 /*
- * The Findcheap API in TypeScript: three POSTs over fetch, the answer as
- * the API sends it. Nothing is reshaped: a search answer opens with
- * `request_id` and `search` (what was searched), then `product`,
- * `product_name`, `about_lists` (one sentence saying what the two lists
- * hold for this search), `same_product`, `similar_products`,
- * `page_is_cheapest`, `next_steps` (what can be done next, each with the
- * call that does it), `credits_used`.
+ * The Findcheap API in TypeScript: the three calls and the feedback on a
+ * search, each a POST over fetch, the answer as the API sends it. Nothing
+ * is reshaped: a search answer opens with `request_id` and `search` (what
+ * was searched), then `product`, `product_name`, `about_lists` (one
+ * sentence saying what the two lists hold for this search), `same_product`,
+ * `similar_products`, `page_is_cheapest`, `next_steps` (what can be done
+ * next, each with the call that does it), `credits_used`.
  * Reference: https://findcheap.ai/developers/docs.md
  */
 
-export const VERSION = "0.2.0";
+export const VERSION = "0.3.0";
 export const DEFAULT_BASE_URL = "https://api.findcheap.ai";
 // Above the API's own walls (a search answers within 60 s, a read within 30),
 // so the API's timeout envelope, not a client cut-off, is what a caller sees.
 export const SEARCH_TIMEOUT_MS = 100_000;
 export const EXTRACT_TIMEOUT_MS = 40_000;
 export const RESOLVE_TIMEOUT_MS = 20_000;
+// No search runs behind a feedback report: the same ceiling as resolve.
+export const FEEDBACK_TIMEOUT_MS = 20_000;
 
 export type Condition = "new" | "used";
 export type Marketplace = "amazon" | "walmart" | "ebay" | "aliexpress" | "shein" | "flipkart" | "other_sites";
@@ -81,14 +83,62 @@ export interface ReadAnswer extends Product {
 
 export interface ResolveAnswer { request_id: string; resolved: boolean; url: string | null; retailer: string | null; credits_used: number }
 
+export interface FeedbackAnswer {
+  /** This feedback call's own id, not the search's. */
+  request_id: string;
+  recorded: boolean;
+  /** The search already had a report: the first one stands and this one changed nothing. */
+  already_reported: boolean;
+  /** 0 or 1: the first report on a search gives 1 credit back. */
+  credits_refunded: number;
+  /** Credits given back to the account for feedback so far today (UTC). */
+  refunded_today: number;
+  /** The most credits feedback gives back to an account in a day: 100. */
+  daily_refund_cap: number;
+  daily_cap_reached: boolean;
+  /** Always 0: sending feedback costs nothing. */
+  credits_used: number;
+}
+
 export interface SearchOptions { market?: string; marketplaces?: Marketplace[] | string[]; condition?: Condition; max_results?: number; signal?: AbortSignal }
 export interface ExtractOptions { market?: string; signal?: AbortSignal }
+
+/** How a search went: the feedback call's rating. */
+export type FeedbackRating = "good" | "partial" | "bad";
+/** Which of a search answer's two lists a card is in. */
+export type ListName = "same_product" | "similar_products";
+/** Why a card does not belong in its list. */
+export type WrongReason = "different_product" | "not_equivalent" | "price_differs" | "unavailable" | "other";
+
+/** In a feedback report: a card that was shown or recommended. `position` is its place in its list, counted from 1 (1 to 10). */
+export interface UsefulCard { list: ListName; position: number }
+/** In a feedback report: a card that does not belong in its list, with the reason. `position` counts from 1 within that list (1 to 10). */
+export interface WrongCard { list: ListName; position: number; reason: WrongReason }
+/** In a feedback report: a cheaper listing found elsewhere that the answer did not have. `price` may be left out. */
+export interface CheaperElsewhere { url: string; price?: number | null }
+
+/** What a feedback report carries beside its rating: send at least one of the six fields (each list takes at most 20 items). `signal` cancels the call and is no part of the report. */
+export interface FeedbackOptions {
+  /** The cards that were shown or recommended. */
+  useful_cards?: UsefulCard[];
+  /** Cards that do not belong in their list. */
+  wrong_cards?: WrongCard[];
+  /** Cheaper listings found elsewhere that the answer did not have. */
+  cheaper_elsewhere?: CheaperElsewhere[];
+  /** Short sentences: what was expected and not returned. */
+  missing?: string[];
+  /** One sentence: what the shopper was trying to do. The API cuts it at 300 characters. */
+  goal?: string;
+  /** Anything else, short. The API cuts it at 1,000 characters. */
+  note?: string;
+  signal?: AbortSignal;
+}
 
 export interface FindcheapOptions {
   /** Defaults to FINDCHEAP_API_KEY in the environment (Node). */
   apiKey?: string;
   baseUrl?: string;
-  /** One timeout for every call, replacing the per-call defaults (100 s search, 40 s extract, 20 s resolve). */
+  /** One timeout for every call, replacing the per-call defaults (100 s search, 40 s extract, 20 s resolve and feedback). */
   timeoutMs?: number;
   /** A fetch to use instead of the global one (tests, polyfills). */
   fetch?: typeof fetch;
@@ -101,7 +151,8 @@ export class FindcheapError extends Error {}
  * The API answered an error: its envelope's type, message, credits_used and request_id, plus the HTTP status.
  * `type` is one of the reference's (invalid_request, invalid_url, unknown_market, unauthorized, credits_exhausted,
  * account_suspended, not_searchable, refused, rate_limited, unreachable, timeout, search_failed,
- * account_service_unavailable), or "http_error" when the body was not the API's envelope (a proxy's page).
+ * account_service_unavailable, and the feedback call's search_not_found and feedback_off), or "http_error" when
+ * the body was not the API's envelope (a proxy's page).
  */
 export class FindcheapApiError extends FindcheapError {
   constructor(
@@ -163,6 +214,23 @@ export class Findcheap {
   /** The merchant's link for a card that came with a resolve_id (1 credit when a link came back). */
   resolve(resolveId: string, options: { signal?: AbortSignal } = {}): Promise<ResolveAnswer> {
     return this.post<ResolveAnswer>("/v1/resolve", { id: resolveId }, RESOLVE_TIMEOUT_MS, options.signal);
+  }
+
+  /**
+   * How a search went, reported by the `request_id` of its answer (costs nothing; the first report on a search gives
+   * 1 credit back, up to 100 credits a day). One report per search, within 20 minutes of the search. Send the rating
+   * and at least one other field: only the fields given travel, and the API refuses a rating alone (400 invalid_request).
+   */
+  feedback(requestId: string, rating: FeedbackRating, options: FeedbackOptions = {}): Promise<FeedbackAnswer> {
+    const body: Record<string, unknown> = { rating };
+    if (options.useful_cards !== undefined) body.useful_cards = options.useful_cards;
+    if (options.wrong_cards !== undefined) body.wrong_cards = options.wrong_cards;
+    if (options.cheaper_elsewhere !== undefined) body.cheaper_elsewhere = options.cheaper_elsewhere;
+    if (options.missing !== undefined) body.missing = options.missing;
+    if (options.goal !== undefined) body.goal = options.goal;
+    if (options.note !== undefined) body.note = options.note;
+    // The search's id is one segment of the path, so all of it is escaped: a slash becomes %2F too.
+    return this.post<FeedbackAnswer>(`/v1/search/${encodeURIComponent(requestId)}/feedback`, body, FEEDBACK_TIMEOUT_MS, options.signal);
   }
 
   private async post<T>(path: string, body: Record<string, unknown>, defaultTimeoutMs: number, signal?: AbortSignal): Promise<T> {

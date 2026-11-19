@@ -1,4 +1,5 @@
-"""The client: three POSTs over urllib, the answer as the API sends it.
+"""The client: the three calls and the feedback on a search, each a POST
+over urllib, the answer as the API sends it.
 
 Nothing is reshaped. A search answer opens with `request_id` and `search`
 (what was searched), then `product`, `product_name`, `about_lists` (one
@@ -14,10 +15,11 @@ import json
 import os
 import socket
 import urllib.error
+import urllib.parse
 import urllib.request
 from typing import Any, Dict, List, Literal, Optional, TypedDict
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 DEFAULT_BASE_URL = "https://api.findcheap.ai"
 # Above the API's own walls (a search answers within 60 s, a read within 30),
@@ -25,8 +27,15 @@ DEFAULT_BASE_URL = "https://api.findcheap.ai"
 SEARCH_TIMEOUT_S = 100.0
 EXTRACT_TIMEOUT_S = 40.0
 RESOLVE_TIMEOUT_S = 20.0
+# No search runs behind a feedback report: the same ceiling as resolve.
+FEEDBACK_TIMEOUT_S = 20.0
 
 Condition = Literal["new", "used"]
+# The feedback call's words: how the search went, which of the answer's two
+# lists a card is in, and why a card does not belong in its list.
+FeedbackRating = Literal["good", "partial", "bad"]
+ListName = Literal["same_product", "similar_products"]
+WrongReason = Literal["different_product", "not_equivalent", "price_differs", "unavailable", "other"]
 
 
 class SearchEcho(TypedDict):
@@ -145,6 +154,36 @@ class ResolveAnswer(TypedDict):
     credits_used: int
 
 
+class UsefulCard(TypedDict):
+    """In a feedback report: a card that was shown or recommended."""
+    list: ListName                    # the list of the search answer the card is in
+    position: int                     # its place in that list, counted from 1 (1 to 10)
+
+
+class WrongCard(TypedDict):
+    """In a feedback report: a card that does not belong in its list, with the reason."""
+    list: ListName
+    position: int                     # its place in that list, counted from 1 (1 to 10)
+    reason: WrongReason
+
+
+class CheaperElsewhere(TypedDict, total=False):
+    """In a feedback report: a cheaper listing found elsewhere that the answer did not have."""
+    url: str                          # the listing's address: always sent
+    price: Optional[float]            # may be left out
+
+
+class FeedbackAnswer(TypedDict):
+    request_id: str                   # this feedback call's own id, not the search's
+    recorded: bool
+    already_reported: bool            # the search already had a report: the first one stands, this one changed nothing
+    credits_refunded: int             # 0 or 1: the first report on a search gives 1 credit back
+    refunded_today: int               # credits given back to the account for feedback so far today (UTC)
+    daily_refund_cap: int             # the most credits feedback gives back to an account in a day: 100
+    daily_cap_reached: bool
+    credits_used: int                 # always 0: sending feedback costs nothing
+
+
 class FindcheapError(Exception):
     """Anything that stopped a call: the API's answer (FindcheapApiError) or the network (FindcheapConnectionError)."""
 
@@ -154,8 +193,9 @@ class FindcheapApiError(FindcheapError):
 
     `type` is one of the reference's: invalid_request, invalid_url, unknown_market, unauthorized,
     credits_exhausted, account_suspended, not_searchable, refused, rate_limited, unreachable,
-    timeout, search_failed, account_service_unavailable — or "http_error" when the body was not
-    the API's envelope (a proxy's page). `retry_after` is the 429's header, in seconds, else None.
+    timeout, search_failed, account_service_unavailable, and the feedback call's search_not_found
+    and feedback_off — or "http_error" when the body was not the API's envelope (a proxy's page).
+    `retry_after` is the 429's header, in seconds, else None.
     """
 
     def __init__(self, status: int, type_: str, message: str, credits_used: int = 0,
@@ -171,7 +211,7 @@ class FindcheapConnectionError(FindcheapError):
 
 class Findcheap:
     """The client. `api_key` defaults to the FINDCHEAP_API_KEY environment variable; `timeout`, when
-    given, replaces the per-call defaults (100 s search, 40 s extract, 20 s resolve)."""
+    given, replaces the per-call defaults (100 s search, 40 s extract, 20 s resolve and feedback)."""
 
     def __init__(self, api_key: Optional[str] = None, *, base_url: str = DEFAULT_BASE_URL,
                  timeout: Optional[float] = None, user_agent: Optional[str] = None):
@@ -211,6 +251,42 @@ class Findcheap:
     def resolve(self, resolve_id: str) -> ResolveAnswer:
         """The merchant's link for a card that came with a resolve_id (1 credit when a link came back)."""
         return self._post("/v1/resolve", {"id": resolve_id}, RESOLVE_TIMEOUT_S)  # type: ignore[return-value]
+
+    # ── Feedback on a search ─────────────────────────────────────────
+
+    def feedback(self, request_id: str, rating: FeedbackRating, *,
+                 useful_cards: Optional[List[UsefulCard]] = None, wrong_cards: Optional[List[WrongCard]] = None,
+                 cheaper_elsewhere: Optional[List[CheaperElsewhere]] = None, missing: Optional[List[str]] = None,
+                 goal: Optional[str] = None, note: Optional[str] = None) -> FeedbackAnswer:
+        """How a search went, reported by the `request_id` of its answer (costs nothing; the first report
+        on a search gives 1 credit back, up to 100 credits a day). One report per search, within 20
+        minutes of the search. Send the rating and at least one other field: only the fields given
+        travel in the body, and the API refuses a rating alone (400 invalid_request).
+
+        `useful_cards` are the cards that were shown or recommended, `wrong_cards` the cards that do not
+        belong in their list, `cheaper_elsewhere` cheaper listings found elsewhere that the answer did
+        not have, `missing` short sentences on what was expected and not returned (each list at most 20
+        items). `goal` is one sentence on what the shopper was trying to do (the API cuts it at 300
+        characters); `note` is anything else, short (cut at 1,000)."""
+        body: Dict[str, Any] = {"rating": rating}
+        # The lists travel as they were given, without the list() copy search() makes: list() would
+        # turn one sentence passed bare as `missing` into its letters, a report the API could take.
+        if useful_cards is not None:
+            body["useful_cards"] = useful_cards
+        if wrong_cards is not None:
+            body["wrong_cards"] = wrong_cards
+        if cheaper_elsewhere is not None:
+            body["cheaper_elsewhere"] = cheaper_elsewhere
+        if missing is not None:
+            body["missing"] = missing
+        if goal is not None:
+            body["goal"] = goal
+        if note is not None:
+            body["note"] = note
+        # The search's id is one segment of the path, so all of it is escaped: with safe="" a
+        # slash becomes %2F too.
+        path = f"/v1/search/{urllib.parse.quote(request_id, safe='')}/feedback"
+        return self._post(path, body, FEEDBACK_TIMEOUT_S)  # type: ignore[return-value]
 
     # ── The wire ─────────────────────────────────────────────────────
 

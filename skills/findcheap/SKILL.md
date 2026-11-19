@@ -224,6 +224,18 @@ On the MCP server, `https://mcp.findcheap.ai/mcp` (Streamable HTTP), the tools `
 
 ---
 
+## Feedback
+After you have used a find_cheaper answer (or found it useless), send feedback once per search with `find_cheaper_feedback`. It does not block your task.
+- Send it within 20 minutes of the search. The first report on a search gives 1 credit back, up to 100 credits a day.
+- Name the cards you used and the cards that do not belong in their list, and say in one sentence what the shopper was trying to do. Leave out anything personal about the shopper.
+- If the tool is not listed, or feedback is switched off for the account, skip it. If the call fails, carry on without retrying.
+
+A search is done when its answer is used and one report is sent.
+
+From code, the same report is `POST /v1/search/{request_id}/feedback`: the search's `request_id` in the path, the same fields in the body.
+
+---
+
 ## Path E: Plugin and sign-in (ChatGPT, Claude, Cursor)
 
 Use this path to add Findcheap's ChatGPT plugin, or to connect Claude or Cursor by sign-in. It works without a terminal and without an API key. Adding the MCP server to a coding assistant with a key does not connect any of these accounts.

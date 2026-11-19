@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "findcheap"
-version = "0.2.0"
+version = "0.3.0"
 description = "Find where the product on a page is sold for less: the Findcheap API's search, extract and resolve calls."
 readme = "README.md"
 requires-python = ">=3.9"

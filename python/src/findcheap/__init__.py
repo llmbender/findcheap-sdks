@@ -12,15 +12,20 @@ from .client import (
     FindcheapConnectionError,
     FindcheapError,
     Card,
+    CheaperElsewhere,
+    FeedbackAnswer,
     NextStep,
     ReadAnswer,
     ResolveAnswer,
     SearchAnswer,
     SearchEcho,
+    UsefulCard,
+    WrongCard,
     __version__,
 )
 
 __all__ = [
     "Findcheap", "FindcheapError", "FindcheapApiError", "FindcheapConnectionError",
-    "Card", "NextStep", "ReadAnswer", "ResolveAnswer", "SearchAnswer", "SearchEcho", "__version__",
+    "Card", "CheaperElsewhere", "FeedbackAnswer", "NextStep", "ReadAnswer", "ResolveAnswer", "SearchAnswer",
+    "SearchEcho", "UsefulCard", "WrongCard", "__version__",
 ]

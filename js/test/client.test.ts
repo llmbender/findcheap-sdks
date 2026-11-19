@@ -14,6 +14,7 @@ const SEARCH = { request_id: "r-1", search: { url: "https://shop.example.com/p/1
   credits_used: 10 };
 const READ = { request_id: "r-2", is_product_page: true, url: "https://shop.example.com/p/1", market: "US", title: "Kettle", image: null, price: 29.99, currency: "USD", brand: "Acme", in_stock: true, retailer: "eBay", coupon: "$5 coupon", promo_code: "SHOPNOW15", shipping_cost: 7.36, returns_accepted: true, return_days: 30, return_shipping_paid_by: "seller", reason: null, credits_used: 1 };
 const RESOLVE = { request_id: "r-3", resolved: true, url: "https://merchant/x", retailer: "Walmart", credits_used: 1 };
+const FEEDBACK = { request_id: "r-4", recorded: true, already_reported: false, credits_refunded: 1, refunded_today: 3, daily_refund_cap: 100, daily_cap_reached: false, credits_used: 0 };
 const seen: { path: string; headers: IncomingMessage["headers"]; body: Record<string, unknown> }[] = [];
 
 function send(res: ServerResponse, status: number, payload: unknown, headers: Record<string, string> = {}) {
@@ -31,6 +32,14 @@ const server = createServer((req, res) => {
     if (body.url === "https://slow.example/p") return send(res, 429, { error: { type: "rate_limited", message: "Wait.", credits_used: 0, request_id: "e-2" } }, { "Retry-After": "7" });
     if (body.url === "https://proxy.example/p") { res.writeHead(502, { "Content-Type": "text/html" }); return res.end("<html>Bad Gateway</html>"); }
     if (body.url === "https://hang.example/p") return; // never answers: the client's timeout fires
+    // The feedback call carries the search's id in its path. Two ids stand for its own two refusals,
+    // and a body holding the rating alone is refused in the API's words.
+    if (req.url === "/v1/search/r-old/feedback") return send(res, 404, { error: { type: "search_not_found", message: "No search with this id in the last 20 minutes.", credits_used: 0, request_id: "e-3" } });
+    if (req.url === "/v1/search/r-off/feedback") return send(res, 403, { error: { type: "feedback_off", message: "Feedback is switched off for this account.", credits_used: 0, request_id: "e-4" } });
+    if (req.url?.startsWith("/v1/search/") && req.url.endsWith("/feedback")) {
+      if (Object.keys(body).join() === "rating") return send(res, 400, { error: { type: "invalid_request", message: "Send the rating and at least one other field.", credits_used: 0, request_id: "e-5" } });
+      return send(res, 200, FEEDBACK);
+    }
     send(res, 200, ({ "/v1/search": SEARCH, "/v1/extract": READ, "/v1/resolve": RESOLVE } as Record<string, unknown>)[req.url ?? ""]);
   });
 });
@@ -68,6 +77,42 @@ test("extract and resolve", async () => {
   assert.deepEqual(seen.at(-1)!.body, { id: "abc" });
 });
 
+test("feedback goes to the search's path with only what was given and returns the answer as is", async () => {
+  const out = await client().feedback("r-1", "good", { note: "The first listing was the one to buy." });
+  const last = seen.at(-1)!;
+  assert.equal(last.path, "/v1/search/r-1/feedback");
+  assert.deepEqual(last.body, { rating: "good", note: "The first listing was the one to buy." });
+  assert.equal(last.headers.authorization, "Bearer fc_live_test");
+  assert.deepEqual(Object.keys(out), ["request_id", "recorded", "already_reported", "credits_refunded", "refunded_today", "daily_refund_cap", "daily_cap_reached", "credits_used"]);
+  assert.deepEqual(out, FEEDBACK);
+});
+
+test("feedback fields travel as the API takes them; the caller's signal is no part of the body", async () => {
+  await client().feedback("r-1", "partial", {
+    useful_cards: [{ list: "same_product", position: 1 }],
+    wrong_cards: [{ list: "similar_products", position: 2, reason: "not_equivalent" }],
+    cheaper_elsewhere: [{ url: "https://other.example/p/9", price: 17.5 }, { url: "https://other.example/p/10" }],
+    missing: ["A listing from the brand's own store."],
+    goal: "Buy this kettle for less than the page's price.",
+    note: "The second similar listing is a smaller size.",
+    signal: new AbortController().signal,
+  });
+  assert.deepEqual(seen.at(-1)!.body, {
+    rating: "partial",
+    useful_cards: [{ list: "same_product", position: 1 }],
+    wrong_cards: [{ list: "similar_products", position: 2, reason: "not_equivalent" }],
+    cheaper_elsewhere: [{ url: "https://other.example/p/9", price: 17.5 }, { url: "https://other.example/p/10" }],
+    missing: ["A listing from the brand's own store."],
+    goal: "Buy this kettle for less than the page's price.",
+    note: "The second similar listing is a smaller size.",
+  });
+});
+
+test("feedback escapes the request id in the path", async () => {
+  await client().feedback("r 1/x?y", "good", { note: "ok" });
+  assert.equal(seen.at(-1)!.path, "/v1/search/r%201%2Fx%3Fy/feedback");
+});
+
 test("the envelope becomes an api error with its fields", async () => {
   const e = await client().search("https://en.wikipedia.org/wiki/Shoe").catch((x) => x as FindcheapApiError);
   assert.ok(e instanceof FindcheapApiError);
@@ -83,6 +128,24 @@ test("a 429 carries retry_after; a body that is not the envelope is http_error; 
   assert.deepEqual([proxy.status, proxy.type, proxy.credits_used], [502, "http_error", 0]);
   const wrong = await new Findcheap({ apiKey: "fc_live_wrong", baseUrl: base }).resolve("x").catch((x) => x as FindcheapApiError);
   assert.equal(wrong.type, "unauthorized");
+});
+
+test("feedback with the rating alone travels as given and the API refuses it", async () => {
+  const e = await client().feedback("r-1", "bad").catch((x) => x as FindcheapApiError);
+  assert.ok(e instanceof FindcheapApiError);
+  assert.deepEqual(seen.at(-1)!.body, { rating: "bad" });
+  assert.deepEqual([e.status, e.type, e.detail], [400, "invalid_request", "Send the rating and at least one other field."]);
+});
+
+test("feedback on a search that is not found is search_not_found; switched off for the account is feedback_off", async () => {
+  const late = await client().feedback("r-old", "good", { note: "Sent too late." }).catch((x) => x as FindcheapApiError);
+  assert.ok(late instanceof FindcheapApiError);
+  assert.deepEqual([late.status, late.type, late.credits_used, late.request_id, late.retry_after], [404, "search_not_found", 0, "e-3", null]);
+  assert.equal(late.message, "404 search_not_found: No search with this id in the last 20 minutes.");
+  const off = await client().feedback("r-off", "good", { note: "The first listing was the one to buy." }).catch((x) => x as FindcheapApiError);
+  assert.ok(off instanceof FindcheapApiError);
+  assert.deepEqual([off.status, off.type, off.credits_used, off.request_id, off.retry_after], [403, "feedback_off", 0, "e-4", null]);
+  assert.equal(off.detail, "Feedback is switched off for this account.");
 });
 
 test("no server, or the client's timeout, is a connection error", async () => {
