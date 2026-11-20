@@ -1,11 +1,11 @@
 ---
 name: findcheap
-description: Findcheap finds where the product on a page is sold for less (the same product elsewhere and acceptable equivalents, with prices, retailers and links) and reads what a product page sells. Use when a task involves a product page's address and a price, a cheaper alternative, the same product elsewhere, or reading what a product page sells. Use this skill to connect Findcheap through its ChatGPT plugin, its sign-in for Claude and Cursor, its MCP server or its API, and to add it to an app or agent. Choose the path that matches what the user needs.
+description: Findcheap finds where the product on a page is sold for less (the same product elsewhere and acceptable equivalents, with prices, retailers and links) and reads what a product page sells. It also searches for products from a description in words. Use when a task involves a product page's address and a price, a cheaper alternative, the same product elsewhere, or reading what a product page sells, or when the user names a product or a kind of product and gives no page. Use this skill to connect Findcheap through its ChatGPT plugin, its sign-in for Claude and Cursor, its MCP server or its API, and to add it to an app or agent. Choose the path that matches what the user needs.
 ---
 
 # Findcheap
 
-Findcheap takes a product page's address and answers where that product is sold for less: the same product elsewhere (`same_product`) and acceptable equivalents (`similar_products`), cheapest first, each with price, retailer, link and any coupon. It also reads a product page without searching, and resolves a card's merchant link.
+Findcheap takes a product page's address and answers where that product is sold for less: the same product elsewhere (`same_product`) and acceptable equivalents (`similar_products`), cheapest first, each with price, retailer, link and any coupon. It also reads a product page without searching, and resolves a card's merchant link. When there is no page, it searches for products from a description in words and answers the listings that match, cheapest first.
 
 The reference: https://findcheap.ai/developers/docs.md. The MCP server's page: https://findcheap.ai/developers/mcp.md. OpenAPI spec: https://api.findcheap.ai/v1/openapi.json.
 
@@ -54,15 +54,16 @@ Choose the path that matches the task:
 
 ## Path A: Live tools
 
-Use this when you need Findcheap during your work: finding where a product is sold for less, or reading what a product page sells.
+Use this when you need Findcheap during your work: finding where a product is sold for less, finding products from a description in words, or reading what a product page sells.
 
-Prefer the working Findcheap tools in the active app: `find_cheaper`, `read_product_page` and `resolve_listing`. Call the API directly (Path D) when the tools are not available. A refusal or a used-up credit limit is not a reason to try the same thing another way.
+Prefer the working Findcheap tools in the active app: `find_cheaper`, `search_products`, `read_product_page` and `resolve_listing`. Call the API directly (Path D) when the tools are not available. A refusal or a used-up credit limit is not a reason to try the same thing another way.
 
 Default flow:
 
 1. `find_cheaper` (or `/v1/search`) with the product page's address, when the task is a lower price, the same product elsewhere or an equivalent. It takes up to 60 seconds: wait for the answer rather than sending the call again.
-2. `read_product_page` (or `/v1/extract`) when you only need what the page sells.
-3. `resolve_listing` (or `/v1/resolve`) for a card whose `url` is `null`, before you show that card.
+2. `search_products` (or `/v1/products/search`) when the shopper names a product or a kind of product and gives no page: it answers up to 10 listings that match the words, cheapest first.
+3. `read_product_page` (or `/v1/extract`) when you only need what the page sells.
+4. `resolve_listing` (or `/v1/resolve`) for a card whose `url` is `null`, before you show that card.
 
 How to read an answer is under Path D. If the task becomes "add Findcheap to the user's product", switch to Path B.
 
@@ -167,17 +168,18 @@ You still need an API key: Path C.
 
 **Auth header:** `Authorization: Bearer fc_live_...`
 
-### The three calls
+### The four calls
 
 All are `POST https://api.findcheap.ai/v1/<call>` with a JSON body and a JSON answer. In Python or JavaScript, the official clients do the HTTP: `pip install findcheap` / `npm install findcheap`, then `Findcheap().search(url, max_results=3)` / `new Findcheap().search(url, { max_results: 3 })`; a failed call is a `FindcheapApiError` carrying the envelope's fields (https://github.com/llmbender/findcheap-sdks).
 
 | Call | Body | Answers | Credits | Time |
 | --- | --- | --- | --- | --- |
 | `/v1/search` | `url`, optional `market`, `marketplaces`, `condition` (`new` / `used`), `max_results` (1–10) | the header, `product`, `about_lists`, `same_product`, `similar_products`, `page_is_cheapest`, `next_steps` | 10 | up to 60 s, usually 15–30 |
+| `/v1/products/search` | `query`, `market`, optional `objective`, `min_price`, `max_price`, `max_results` (1–10) | the header, `about_listings`, `listings` | 10 | about 6 s |
 | `/v1/extract` | `url`, optional `market` | `is_product_page`, title, image, price, currency, brand, in_stock, `reason`, `next_steps`; for an eBay listing also its shipping cost and return terms (`shipping_cost`, `returns_accepted`, `return_days`, `return_shipping_paid_by`) | 1 | up to 30 s, median 4 |
 | `/v1/resolve` | `id` (a card's `resolve_id`) | `resolved`, `url`, `retailer` | 1 when a link came back, else 0 | about 1 s |
 
-Set the HTTP client's timeout above the call's ceiling: 100 s for a search, 40 s for a read. `market` is the shopper's country (US, CA, AU, IN, GLOBAL); omit it and the address decides (`.in` → IN, `.ca` → CA, else US). Ask for `max_results: 3` when only the cheapest few matter; the credits are the same.
+Set the HTTP client's timeout above the call's ceiling: 100 s for a search, 40 s for a read. `market` is the shopper's country (US, CA, AU, IN, GLOBAL); omit it and the address decides (`.in` → IN, `.ca` → CA, else US). A search by words has no address, so it needs `market`. Ask for `max_results: 3` when only the cheapest few matter; the credits are the same.
 
 ### Reading a search answer
 
@@ -207,6 +209,7 @@ The answer is ordered so the header comes first. Read it before the cards:
 - `price` on a card is after any coupon or promo code; `price_before_discount`, `coupon` and `promo_code` say what was applied.
 - `price` never includes shipping. `shipping_cost` on a card is what the retailer charges to ship it, when known: `0` is free shipping, `null` is unknown.
 - `condition: "used"` searches secondhand copies; it is not available in India and is refused for grocery and consumable products.
+- A `/v1/products/search` answer has no page and one list: `search` (the words, the market, the price range), `about_listings` and `listings`, cheapest first. An empty list means no listing that matches the words was found.
 
 ### Errors and credits
 
@@ -220,7 +223,7 @@ Every error is an HTTP status with one shape: `{"error": {"type", "message", "cr
 
 ### The same calls as MCP tools
 
-On the MCP server, `https://mcp.findcheap.ai/mcp` (Streamable HTTP), the tools `find_cheaper`, `read_product_page` and `resolve_listing` take the same parameters and return the same JSON as the API, with progress notifications while a search runs. One difference: `request_id` and `credits_used` are not in a tool's answer; they are in the result's `_meta`, as `ai.findcheap/request_id` and `ai.findcheap/credits_used`.
+On the MCP server, `https://mcp.findcheap.ai/mcp` (Streamable HTTP), the tools `find_cheaper`, `search_products`, `read_product_page` and `resolve_listing` take the same parameters and return the same JSON as the API, with progress notifications while a search runs. `search_products` also requires `objective`: what the shopper wants, in one sentence. One difference: `request_id` and `credits_used` are not in a tool's answer; they are in the result's `_meta`, as `ai.findcheap/request_id` and `ai.findcheap/credits_used`.
 
 ---
 
