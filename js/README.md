@@ -28,7 +28,7 @@ Timeouts sit above the API's own ceilings (a search answers within 60 seconds, a
 
 The reference, with every field: https://findcheap.ai/developers/docs.md.
 
-## Search by words
+## Search by text
 
 `searchProducts` finds products from a description in words, for when there is no product page to start from:
 
@@ -53,6 +53,6 @@ const report = await fc.feedback(answer.request_id, "partial", {
 console.log(report.credits_refunded, "credit back,", report.refunded_today, "of", report.daily_refund_cap, "today");
 ```
 
-Send the rating (`"good"`, `"partial"` or `"bad"`) and at least one other field: `useful_cards` (the cards that were shown or recommended), `wrong_cards` (cards that do not belong in their list, each with a `reason`: `different_product`, `not_equivalent`, `price_differs`, `unavailable` or `other`), `cheaper_elsewhere` (cheaper listings found elsewhere that the answer did not have, each a `url` and optionally its `price`), `missing` (short sentences: what was expected and not returned), `goal` (one sentence: what the shopper was trying to do) or `note` (anything else, short). A card is named by its `list` (`same_product` or `similar_products`) and its `position` in that list, counted from 1.
+Send the rating (`"good"`, `"partial"` or `"bad"`) and at least one other field: `useful_cards` (the cards that were shown or recommended), `wrong_cards` (cards that do not belong in their list, each with a `reason`: `different_product`, `not_equivalent`, `price_differs`, `unavailable` or `other`), `cheaper_elsewhere` (cheaper listings found elsewhere that the answer did not have, each a `url` and optionally its `price`), `missing` (short sentences: what was expected and not returned), `goal` (one sentence: what the shopper was trying to do) or `note` (anything else, short). A card is named by its `list` (`same_product` or `similar_products`, or `listings` for a search by words) and its `position` in that list, counted from 1. A search by words takes a report the same way, by the `request_id` of its own answer.
 
 The limits: one report per search, within 20 minutes of the search. The first report on a search gives 1 credit back, up to 100 credits a day per account. Sending feedback costs nothing. A second report on the same search changes nothing: the first one stands and the answer says `already_reported`. A refused report throws `FindcheapApiError` like any other call: `search_not_found` (404) when the account made no search with this id in the last 20 minutes, `feedback_off` (403) when feedback is switched off for the account, `invalid_request` (400) for a rating with no other field.

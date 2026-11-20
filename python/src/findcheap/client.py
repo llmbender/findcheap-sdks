@@ -34,10 +34,11 @@ RESOLVE_TIMEOUT_S = 20.0
 FEEDBACK_TIMEOUT_S = 20.0
 
 Condition = Literal["new", "used"]
-# The feedback call's words: how the search went, which of the answer's two
-# lists a card is in, and why a card does not belong in its list.
+# The feedback call's words: how the search went, which list of the answer a
+# card is in (one of a search by URL's two lists, or `listings`, the one
+# list of a search by words), and why a card does not belong in its list.
 FeedbackRating = Literal["good", "partial", "bad"]
-ListName = Literal["same_product", "similar_products"]
+ListName = Literal["same_product", "similar_products", "listings"]
 WrongReason = Literal["different_product", "not_equivalent", "price_differs", "unavailable", "other"]
 
 
@@ -307,7 +308,9 @@ class Findcheap:
         """How a search went, reported by the `request_id` of its answer (costs nothing; the first report
         on a search gives 1 credit back, up to 100 credits a day). One report per search, within 20
         minutes of the search. Send the rating and at least one other field: only the fields given
-        travel in the body, and the API refuses a rating alone (400 invalid_request).
+        travel in the body, and the API refuses a rating alone (400 invalid_request). It works the
+        same for a search by URL (`search`) and a search by words (`search_products`), whose cards
+        are named in the list `listings`.
 
         `useful_cards` are the cards that were shown or recommended, `wrong_cards` the cards that do not
         belong in their list, `cheaper_elsewhere` cheaper listings found elsewhere that the answer did

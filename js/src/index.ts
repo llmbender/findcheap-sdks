@@ -136,8 +136,8 @@ export interface ProductsSearchOptions {
 
 /** How a search went: the feedback call's rating. */
 export type FeedbackRating = "good" | "partial" | "bad";
-/** Which of a search answer's two lists a card is in. */
-export type ListName = "same_product" | "similar_products";
+/** Which list of a search answer a card is in: one of a search by URL's two lists, or `listings`, the one list of a search by words. */
+export type ListName = "same_product" | "similar_products" | "listings";
 /** Why a card does not belong in its list. */
 export type WrongReason = "different_product" | "not_equivalent" | "price_differs" | "unavailable" | "other";
 
@@ -266,6 +266,8 @@ export class Findcheap {
    * How a search went, reported by the `request_id` of its answer (costs nothing; the first report on a search gives
    * 1 credit back, up to 100 credits a day). One report per search, within 20 minutes of the search. Send the rating
    * and at least one other field: only the fields given travel, and the API refuses a rating alone (400 invalid_request).
+   * It works the same for a search by URL (`search`) and a search by words (`searchProducts`), whose cards are named
+   * in the list `listings`.
    */
   feedback(requestId: string, rating: FeedbackRating, options: FeedbackOptions = {}): Promise<FeedbackAnswer> {
     const body: Record<string, unknown> = { rating };

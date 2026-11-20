@@ -148,6 +148,19 @@ test("feedback fields travel as the API takes them; the caller's signal is no pa
   });
 });
 
+test("feedback on a search by words names its cards in listings, on the same path", async () => {
+  await client().feedback("w-1", "good", {
+    useful_cards: [{ list: "listings", position: 1 }],
+    wrong_cards: [{ list: "listings", position: 3, reason: "different_product" }],
+  });
+  const last = seen.at(-1)!;
+  assert.equal(last.path, "/v1/search/w-1/feedback");
+  assert.deepEqual(last.body, {
+    rating: "good", useful_cards: [{ list: "listings", position: 1 }],
+    wrong_cards: [{ list: "listings", position: 3, reason: "different_product" }],
+  });
+});
+
 test("feedback escapes the request id in the path", async () => {
   await client().feedback("r 1/x?y", "good", { note: "ok" });
   assert.equal(seen.at(-1)!.path, "/v1/search/r%201%2Fx%3Fy/feedback");

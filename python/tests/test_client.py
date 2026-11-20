@@ -172,6 +172,15 @@ class ClientTest(unittest.TestCase):
             "missing": ["A listing from the brand's own store."], "goal": "Buy this kettle for less than the page's price.",
             "note": "The second similar listing is a smaller size."})
 
+    def test_feedback_on_a_search_by_words_names_its_cards_in_listings(self):
+        # A search by words takes a report on the same path, by its own request_id; its one list is `listings`.
+        seen.clear()
+        self.fc.feedback("w-1", "good", useful_cards=[{"list": "listings", "position": 1}],
+                         wrong_cards=[{"list": "listings", "position": 3, "reason": "different_product"}])
+        self.assertEqual(seen[-1][0], "/v1/search/w-1/feedback")
+        self.assertEqual(seen[-1][2], {"rating": "good", "useful_cards": [{"list": "listings", "position": 1}],
+                                       "wrong_cards": [{"list": "listings", "position": 3, "reason": "different_product"}]})
+
     def test_feedback_escapes_the_request_id_in_the_path(self):
         seen.clear()
         self.fc.feedback("r 1/x?y", "good", note="ok")
