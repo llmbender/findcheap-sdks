@@ -1,5 +1,5 @@
-"""The client: the three calls and the feedback on a search, each a POST
-over urllib, the answer as the API sends it.
+"""The client: the three calls, the search by words and the feedback on a
+search, each a POST over urllib, the answer as the API sends it.
 
 Nothing is reshaped. A search answer opens with `request_id` and `search`
 (what was searched), then `product`, `product_name`, `about_lists` (one
@@ -7,7 +7,10 @@ sentence saying what the two lists hold for this search), `same_product`,
 `similar_products`, `page_is_cheapest`, `next_steps` (what can be done
 next, each with the call that does it), `credits_used`; the TypedDicts
 below name the fields for an editor, and `extra="allow"` on the API's
-side means a field added later arrives here untouched.
+side means a field added later arrives here untouched. A search by words
+(search_products) has no page: its answer is `request_id`, `search`,
+`about_listings` (one sentence saying what the list holds), `listings`,
+`credits_used`.
 """
 from __future__ import annotations
 
@@ -98,6 +101,25 @@ class Card(TypedDict, total=False):
     discount_type: Optional[str]
     discount_value: Optional[float]
     shipping_cost: Optional[float]    # what the retailer charges to ship it: 0 = free, None = unknown; `price` does not include it
+
+
+class ProductsSearchEcho(TypedDict):
+    """What a search by words searched: the words as sent, the market, the price range, the cap."""
+    query: str
+    market: str
+    min_price: Optional[float]        # None when none was sent
+    max_price: Optional[float]        # None when none was sent
+    max_results: int                  # the cap on the list: the one sent, or 10
+
+
+class ProductsSearchAnswer(TypedDict):
+    request_id: str
+    search: ProductsSearchEcho
+    about_listings: str               # what the list holds for this search; read it before the list
+    # Listings that match the words, cheapest first, up to 10; empty when none was found. A listing is a
+    # Card without over_page_price and normalized_price: there is no page to compare a price with.
+    listings: List[Card]
+    credits_used: int                 # 10 for a search by words, with or without listings
 
 
 class NextStep(TypedDict):
@@ -211,7 +233,7 @@ class FindcheapConnectionError(FindcheapError):
 
 class Findcheap:
     """The client. `api_key` defaults to the FINDCHEAP_API_KEY environment variable; `timeout`, when
-    given, replaces the per-call defaults (100 s search, 40 s extract, 20 s resolve and feedback)."""
+    given, replaces the per-call defaults (100 s for either search, 40 s extract, 20 s resolve and feedback)."""
 
     def __init__(self, api_key: Optional[str] = None, *, base_url: str = DEFAULT_BASE_URL,
                  timeout: Optional[float] = None, user_agent: Optional[str] = None):
@@ -240,6 +262,30 @@ class Findcheap:
         if max_results is not None:
             body["max_results"] = max_results
         return self._post("/v1/search", body, SEARCH_TIMEOUT_S)  # type: ignore[return-value]
+
+    def search_products(self, query: str, *, market: str, objective: Optional[str] = None,
+                        min_price: Optional[float] = None, max_price: Optional[float] = None,
+                        max_results: Optional[int] = None) -> ProductsSearchAnswer:
+        """Listings that match a description in words, cheapest first (10 credits, with or without
+        listings; usually about 6 s, at most 60). For when there is no product page to start from; with
+        a page's address, search() finds that product for less.
+
+        `query` is what the shopper is looking for, in the shopper's own words: a kind of product ("TV")
+        or a named product ("Insignia Fire TV"), one product per call, with everything the shopper asked
+        for (the brand, the model, a size, a colour). `market` is the shopper's country (US, CA, AU, IN or
+        GLOBAL) and is required: there is no address to infer it from. `objective` is one sentence on
+        what the shopper wants, never anything personal about them. `min_price` and `max_price` are in
+        the market's currency. Only the options given travel in the body."""
+        body: Dict[str, Any] = {"query": query, "market": market}
+        if objective is not None:
+            body["objective"] = objective
+        if min_price is not None:
+            body["min_price"] = min_price
+        if max_price is not None:
+            body["max_price"] = max_price
+        if max_results is not None:
+            body["max_results"] = max_results
+        return self._post("/v1/products/search", body, SEARCH_TIMEOUT_S)  # type: ignore[return-value]
 
     def extract(self, url: str, *, market: Optional[str] = None) -> ReadAnswer:
         """What the page sells, without a search (1 credit; up to 30 s)."""

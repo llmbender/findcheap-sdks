@@ -1,11 +1,15 @@
 /*
- * The Findcheap API in TypeScript: the three calls and the feedback on a
- * search, each a POST over fetch, the answer as the API sends it. Nothing
+ * The Findcheap API in TypeScript: the three calls, the search by words and
+ * the feedback on a search, each a POST over fetch, the answer as the API
+ * sends it. Nothing
  * is reshaped: a search answer opens with `request_id` and `search` (what
  * was searched), then `product`, `product_name`, `about_lists` (one
  * sentence saying what the two lists hold for this search), `same_product`,
  * `similar_products`, `page_is_cheapest`, `next_steps` (what can be done
- * next, each with the call that does it), `credits_used`.
+ * next, each with the call that does it), `credits_used`. A search by words
+ * (searchProducts) has no page: its answer is `request_id`, `search`,
+ * `about_listings` (one sentence saying what the list holds), `listings`,
+ * `credits_used`.
  * Reference: https://findcheap.ai/developers/docs.md
  */
 
@@ -50,6 +54,19 @@ export interface Card {
   /** What the retailer charges to ship the listing within the market's country, without a paid membership: 0 when it ships free, null when unknown. `price` does not include it. */
   shipping_cost?: number | null;
   [extra: string]: unknown;
+}
+
+/** What a search by words searched: the words as sent, the market, the price range (null when none was sent), the cap. */
+export interface ProductsSearchEcho { query: string; market: string; min_price: number | null; max_price: number | null; max_results: number }
+
+export interface ProductsSearchAnswer {
+  request_id: string; search: ProductsSearchEcho;
+  /** What the list holds for this search, in a sentence. Read it before the list. */
+  about_listings: string;
+  /** Listings that match the words, cheapest first, up to 10; empty when none was found. A listing is a Card without over_page_price and normalized_price: there is no page to compare a price with. */
+  listings: Card[];
+  /** 10 for a search by words, with or without listings. */
+  credits_used: number;
 }
 
 /** One thing that can be done next for the product, with the call that does it. */
@@ -102,6 +119,20 @@ export interface FeedbackAnswer {
 
 export interface SearchOptions { market?: string; marketplaces?: Marketplace[] | string[]; condition?: Condition; max_results?: number; signal?: AbortSignal }
 export interface ExtractOptions { market?: string; signal?: AbortSignal }
+/** A search by words: `market` is required (US, CA, AU, IN or GLOBAL: there is no address to infer it from); the rest is optional. `signal` cancels the call. */
+export interface ProductsSearchOptions {
+  /** The shopper's market, the country they are buying in. */
+  market: string;
+  /** What the shopper wants, in one sentence. Nothing personal about the shopper. */
+  objective?: string;
+  /** The lowest price to include, in the market's currency. */
+  min_price?: number;
+  /** The highest price to include, in the market's currency. */
+  max_price?: number;
+  /** How many listings at most, 1 to 10; 10 when omitted. The credits are the same whatever the cap. */
+  max_results?: number;
+  signal?: AbortSignal;
+}
 
 /** How a search went: the feedback call's rating. */
 export type FeedbackRating = "good" | "partial" | "bad";
@@ -138,7 +169,7 @@ export interface FindcheapOptions {
   /** Defaults to FINDCHEAP_API_KEY in the environment (Node). */
   apiKey?: string;
   baseUrl?: string;
-  /** One timeout for every call, replacing the per-call defaults (100 s search, 40 s extract, 20 s resolve and feedback). */
+  /** One timeout for every call, replacing the per-call defaults (100 s for either search, 40 s extract, 20 s resolve and feedback). */
   timeoutMs?: number;
   /** A fetch to use instead of the global one (tests, polyfills). */
   fetch?: typeof fetch;
@@ -202,6 +233,21 @@ export class Findcheap {
     if (options.condition !== undefined && options.condition !== "new") body.condition = options.condition;
     if (options.max_results !== undefined) body.max_results = options.max_results;
     return this.post<SearchAnswer>("/v1/search", body, SEARCH_TIMEOUT_MS, options.signal);
+  }
+
+  /**
+   * Listings that match a description in words, cheapest first (10 credits, with or without listings; usually about
+   * 6 s, at most 60). For when there is no product page to start from; with a page's address, search() finds that
+   * product for less. `query` is what the shopper is looking for, in the shopper's own words: a kind of product ("TV")
+   * or a named product ("Insignia Fire TV"), one product per call. Only the options given travel.
+   */
+  searchProducts(query: string, options: ProductsSearchOptions): Promise<ProductsSearchAnswer> {
+    const body: Record<string, unknown> = { query, market: options.market };
+    if (options.objective !== undefined) body.objective = options.objective;
+    if (options.min_price !== undefined) body.min_price = options.min_price;
+    if (options.max_price !== undefined) body.max_price = options.max_price;
+    if (options.max_results !== undefined) body.max_results = options.max_results;
+    return this.post<ProductsSearchAnswer>("/v1/products/search", body, SEARCH_TIMEOUT_MS, options.signal);
   }
 
   /** What the page sells, without a search (1 credit; up to 30 s). */

@@ -28,6 +28,18 @@ Timeouts sit above the API's own ceilings (a search answers within 60 seconds, a
 
 The reference, with every field: https://findcheap.ai/developers/docs.md.
 
+## Search by words
+
+`searchProducts` finds products from a description in words, for when there is no product page to start from:
+
+```ts
+const found = await fc.searchProducts("Insignia 32 inch Fire TV", { market: "US", max_price: 200 });
+console.log(found.about_listings);
+for (const card of found.listings) console.log(card.price, card.currency, card.retailer, card.url ?? card.resolve_id);
+```
+
+It answers up to 10 listings that match the words, cheapest first, and costs 10 credits, with or without listings. `market` is required: there is no address to infer it from. `objective` (what the shopper wants, in one sentence), `min_price`, `max_price` and `max_results` are optional.
+
 ## Feedback on a search
 
 `feedback` reports how a search went, by the `request_id` of its answer:

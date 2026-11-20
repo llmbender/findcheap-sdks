@@ -23,6 +23,13 @@ SEARCH = {"request_id": "r-1", "search": {"url": "https://shop.example.com/p/1",
 READ = {"request_id": "r-2", "is_product_page": True, "url": "https://shop.example.com/p/1", "market": "US", "title": "Kettle", "image": None,
         "price": 29.99, "currency": "USD", "brand": "Acme", "in_stock": True, "retailer": "eBay", "coupon": "$5 coupon", "promo_code": "SHOPNOW15", "shipping_cost": 7.36, "returns_accepted": True, "return_days": 30, "return_shipping_paid_by": "seller", "reason": None, "credits_used": 1}
 RESOLVE = {"request_id": "r-3", "resolved": True, "url": "https://merchant/x", "retailer": "Walmart", "credits_used": 1}
+PRODUCTS = {"request_id": "r-5", "search": {"query": "Insignia Fire TV", "market": "US", "min_price": None, "max_price": 200.0, "max_results": 10},
+            "about_listings": "listings holds listings that match the words you searched for, cheapest first.",
+            "listings": [{"title": "Insignia 32in Fire TV", "price": 65.0, "currency": "USD", "url": "https://w/tv", "image": "i", "retailer": "eBay", "rating": 100.0, "ratings_count": 39},
+                         {"title": "Insignia F50 Fire TV", "price": 149.99, "currency": "USD", "url": None, "resolve_id": "abc", "image": "i", "retailer": "Best Buy"}],
+            "credits_used": 10}
+NO_PRODUCTS = {"request_id": "r-6", "search": {"query": "a product no store carries", "market": "IN", "min_price": None, "max_price": None, "max_results": 10},
+               "about_listings": "No listing that matches the words was found in this market.", "listings": [], "credits_used": 10}
 FEEDBACK = {"request_id": "r-4", "recorded": True, "already_reported": False, "credits_refunded": 1, "refunded_today": 3, "daily_refund_cap": 100, "daily_cap_reached": False, "credits_used": 0}
 seen = []
 
@@ -49,6 +56,12 @@ class Stub(BaseHTTPRequestHandler):
             if set(body) == {"rating"}:
                 return self._send(400, {"error": {"type": "invalid_request", "message": "Send the rating and at least one other field.", "credits_used": 0, "request_id": "e-5"}})
             return self._send(200, FEEDBACK)
+        # The search by words: words that match nothing answer an empty list (a 200, charged), and a market
+        # the API does not serve is refused in its own words.
+        if self.path == "/v1/products/search":
+            if body.get("market") == "ZZ":
+                return self._send(400, {"error": {"type": "unknown_market", "message": "market must be one of US, CA, AU, IN, GLOBAL.", "credits_used": 0, "request_id": "e-6"}})
+            return self._send(200, NO_PRODUCTS if body.get("query") == "a product no store carries" else PRODUCTS)
         answer = {"/v1/search": SEARCH, "/v1/extract": READ, "/v1/resolve": RESOLVE}[self.path]
         self._send(200, answer)
 
@@ -92,6 +105,41 @@ class ClientTest(unittest.TestCase):
         seen.clear()
         self.fc.search("https://shop.example.com/p/1", market="in", marketplaces=["amazon", "flipkart"], condition="used")
         self.assertEqual(seen[-1][2], {"url": "https://shop.example.com/p/1", "market": "in", "marketplaces": ["amazon", "flipkart"], "condition": "used"})
+
+    def test_search_products_sends_the_words_and_the_market_and_returns_the_answer_as_is(self):
+        seen.clear()
+        out = self.fc.search_products("Insignia Fire TV", market="US")
+        path, headers, body = seen[-1]
+        self.assertEqual(path, "/v1/products/search")
+        self.assertEqual(body, {"query": "Insignia Fire TV", "market": "US"})
+        self.assertEqual(headers["Authorization"], "Bearer fc_live_test")
+        self.assertEqual(list(out), ["request_id", "search", "about_listings", "listings", "credits_used"])
+        self.assertEqual([c["retailer"] for c in out["listings"]], ["eBay", "Best Buy"])
+        self.assertIsNone(out["listings"][1]["url"])
+        self.assertEqual(out["listings"][1]["resolve_id"], "abc")
+        self.assertEqual(out["credits_used"], 10)
+
+    def test_search_products_options_travel_as_the_api_takes_them(self):
+        seen.clear()
+        self.fc.search_products("TV", market="in", objective="A TV for a small bedroom.", min_price=50, max_price=200, max_results=3)
+        self.assertEqual(seen[-1][2], {"query": "TV", "market": "in", "objective": "A TV for a small bedroom.", "min_price": 50, "max_price": 200, "max_results": 3})
+
+    def test_search_products_needs_the_market_by_name(self):
+        with self.assertRaises(TypeError):
+            self.fc.search_products("TV")                    # no address to infer the market from
+        with self.assertRaises(TypeError):
+            self.fc.search_products("TV", "US")              # the market is given by name, as the options are
+
+    def test_search_products_with_nothing_found_is_an_empty_list_not_an_error(self):
+        out = self.fc.search_products("a product no store carries", market="IN")
+        self.assertEqual(out["listings"], [])
+        self.assertEqual(out["about_listings"], "No listing that matches the words was found in this market.")
+        self.assertEqual(out["credits_used"], 10)
+
+    def test_search_products_in_a_market_that_is_not_served_is_unknown_market(self):
+        with self.assertRaises(FindcheapApiError) as caught:
+            self.fc.search_products("TV", market="ZZ")
+        self.assertEqual((caught.exception.status, caught.exception.type, caught.exception.credits_used), (400, "unknown_market", 0))
 
     def test_extract_and_resolve(self):
         self.assertEqual(self.fc.extract("https://shop.example.com/p/1", market="US")["title"], "Kettle")

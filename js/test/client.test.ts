@@ -14,6 +14,13 @@ const SEARCH = { request_id: "r-1", search: { url: "https://shop.example.com/p/1
   credits_used: 10 };
 const READ = { request_id: "r-2", is_product_page: true, url: "https://shop.example.com/p/1", market: "US", title: "Kettle", image: null, price: 29.99, currency: "USD", brand: "Acme", in_stock: true, retailer: "eBay", coupon: "$5 coupon", promo_code: "SHOPNOW15", shipping_cost: 7.36, returns_accepted: true, return_days: 30, return_shipping_paid_by: "seller", reason: null, credits_used: 1 };
 const RESOLVE = { request_id: "r-3", resolved: true, url: "https://merchant/x", retailer: "Walmart", credits_used: 1 };
+const PRODUCTS = { request_id: "r-5", search: { query: "Insignia Fire TV", market: "US", min_price: null, max_price: 200, max_results: 10 },
+  about_listings: "listings holds listings that match the words you searched for, cheapest first.",
+  listings: [{ title: "Insignia 32in Fire TV", price: 65, currency: "USD", url: "https://w/tv", image: "i", retailer: "eBay", rating: 100, ratings_count: 39 },
+    { title: "Insignia F50 Fire TV", price: 149.99, currency: "USD", url: null, resolve_id: "abc", image: "i", retailer: "Best Buy" }],
+  credits_used: 10 };
+const NO_PRODUCTS = { request_id: "r-6", search: { query: "a product no store carries", market: "IN", min_price: null, max_price: null, max_results: 10 },
+  about_listings: "No listing that matches the words was found in this market.", listings: [], credits_used: 10 };
 const FEEDBACK = { request_id: "r-4", recorded: true, already_reported: false, credits_refunded: 1, refunded_today: 3, daily_refund_cap: 100, daily_cap_reached: false, credits_used: 0 };
 const seen: { path: string; headers: IncomingMessage["headers"]; body: Record<string, unknown> }[] = [];
 
@@ -39,6 +46,12 @@ const server = createServer((req, res) => {
     if (req.url?.startsWith("/v1/search/") && req.url.endsWith("/feedback")) {
       if (Object.keys(body).join() === "rating") return send(res, 400, { error: { type: "invalid_request", message: "Send the rating and at least one other field.", credits_used: 0, request_id: "e-5" } });
       return send(res, 200, FEEDBACK);
+    }
+    // The search by words: words that match nothing answer an empty list (a 200, charged), and a market
+    // the API does not serve is refused in its own words.
+    if (req.url === "/v1/products/search") {
+      if (body.market === "ZZ") return send(res, 400, { error: { type: "unknown_market", message: "market must be one of US, CA, AU, IN, GLOBAL.", credits_used: 0, request_id: "e-6" } });
+      return send(res, 200, body.query === "a product no store carries" ? NO_PRODUCTS : PRODUCTS);
     }
     send(res, 200, ({ "/v1/search": SEARCH, "/v1/extract": READ, "/v1/resolve": RESOLVE } as Record<string, unknown>)[req.url ?? ""]);
   });
@@ -67,6 +80,33 @@ test("search sends only what was given and returns the answer as is", async () =
 test("search options travel as the API takes them", async () => {
   await client().search("https://shop.example.com/p/1", { market: "in", marketplaces: ["amazon", "flipkart"], condition: "used" });
   assert.deepEqual(seen.at(-1)!.body, { url: "https://shop.example.com/p/1", market: "in", marketplaces: ["amazon", "flipkart"], condition: "used" });
+});
+
+test("searchProducts sends the words and the market and returns the answer as is", async () => {
+  const out = await client().searchProducts("Insignia Fire TV", { market: "US" });
+  const last = seen.at(-1)!;
+  assert.equal(last.path, "/v1/products/search");
+  assert.deepEqual(last.body, { query: "Insignia Fire TV", market: "US" });
+  assert.equal(last.headers.authorization, "Bearer fc_live_test");
+  assert.deepEqual(Object.keys(out), ["request_id", "search", "about_listings", "listings", "credits_used"]);
+  assert.deepEqual(out.listings.map((c) => c.retailer), ["eBay", "Best Buy"]);
+  assert.equal(out.listings[1].url, null);
+  assert.equal(out.listings[1].resolve_id, "abc");
+  assert.equal(out.credits_used, 10);
+});
+
+test("searchProducts options travel as the API takes them; the caller's signal is no part of the body", async () => {
+  await client().searchProducts("TV", { market: "in", objective: "A TV for a small bedroom.", min_price: 50, max_price: 200, max_results: 3, signal: new AbortController().signal });
+  assert.deepEqual(seen.at(-1)!.body, { query: "TV", market: "in", objective: "A TV for a small bedroom.", min_price: 50, max_price: 200, max_results: 3 });
+});
+
+test("searchProducts with nothing found is an empty list, not an error; a market that is not served is unknown_market", async () => {
+  const out = await client().searchProducts("a product no store carries", { market: "IN" });
+  assert.deepEqual(out.listings, []);
+  assert.equal(out.about_listings, "No listing that matches the words was found in this market.");
+  assert.equal(out.credits_used, 10);
+  await assert.rejects(client().searchProducts("TV", { market: "ZZ" }), (e: unknown) =>
+    e instanceof FindcheapApiError && e.status === 400 && e.type === "unknown_market" && e.credits_used === 0);
 });
 
 test("extract and resolve", async () => {
