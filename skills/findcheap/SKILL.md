@@ -223,7 +223,7 @@ Every error is an HTTP status with one shape: `{"error": {"type", "message", "cr
 
 ### The same calls as MCP tools
 
-On the MCP server, `https://mcp.findcheap.ai/mcp` (Streamable HTTP), the tools `find_cheaper`, `search_products`, `read_product_page` and `resolve_listing` take the same parameters and return the same JSON as the API, with progress notifications while a search runs. `search_products` also requires `objective`: what the shopper wants, in one sentence. One difference: `request_id` and `credits_used` are not in a tool's answer; they are in the result's `_meta`, as `ai.findcheap/request_id` and `ai.findcheap/credits_used`.
+On the MCP server, `https://mcp.findcheap.ai/mcp` (Streamable HTTP), the tools `find_cheaper`, `search_products`, `read_product_page` and `resolve_listing` take the same parameters and return the same JSON as the API, with progress notifications while a search runs. `search_products` also requires `objective`: what the shopper wants, in one sentence; `find_cheaper` and `read_product_page` ask for it too. One difference: `request_id` and `credits_used` are not in a tool's answer; they are in the result's `_meta`, as `ai.findcheap/request_id` and `ai.findcheap/credits_used`.
 
 ---
 
