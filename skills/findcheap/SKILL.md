@@ -61,7 +61,7 @@ Prefer the working Findcheap tools in the active app: `find_cheaper`, `search_pr
 Default flow:
 
 1. `find_cheaper` (or `/v1/search`) with the product page's address, when the task is a lower price, the same product elsewhere or an equivalent. It takes up to 60 seconds: wait for the answer rather than sending the call again.
-2. `search_products` (or `/v1/products/search`) when the shopper names a product or a kind of product and gives no page: it answers up to 10 listings that match the words, cheapest first. When the shopper has a photo of the product and no words for it, send the photo in place of `query`: `image_url` (a link to the photo) or, on the MCP tool, `image_file` (a photo attached to the conversation). The listings then match the product in the photo and acceptable equivalent products.
+2. `search_products` (or `/v1/products/search`) when the shopper names a product or a kind of product and gives no page: it answers up to 10 listings that match the words, cheapest first. When the shopper has a photo of the product and no words for it, send the photo in place of `query`: `image_url` (a link to the photo), on the MCP tool `image_file` (a photo attached to the conversation), or on the API `image_base64` (the photo's file as base64 text). The listings then match the product in the photo and acceptable equivalent products.
 3. `read_product_page` (or `/v1/extract`) when you only need what the page sells.
 4. `resolve_listing` (or `/v1/resolve`) for a card whose `url` is `null`, before you show that card.
 
@@ -175,7 +175,7 @@ All are `POST https://api.findcheap.ai/v1/<call>` with a JSON body and a JSON an
 | Call | Body | Answers | Credits | Time |
 | --- | --- | --- | --- | --- |
 | `/v1/search` | `url`, optional `market`, `marketplaces`, `condition` (`new` / `used`), `max_results` (1–10) | the header, `product`, `about_lists`, `same_product`, `similar_products`, `page_is_cheapest`, `next_steps` | 10 | up to 60 s, usually 15–30 |
-| `/v1/products/search` | `query` or `image_url`, `market`, optional `objective`, `min_price`, `max_price`, `max_results` (1–10) | the header, `about_listings`, `listings` | 10 | about 6 s; about 15 s with a photo |
+| `/v1/products/search` | `query`, `image_url` or `image_base64` (the photo's file as base64 text), `market`, optional `objective`, `min_price`, `max_price`, `max_results` (1–10) | the header, `about_listings`, `listings` | 10 | about 6 s; about 15 s with a photo |
 | `/v1/extract` | `url`, optional `market` | `is_product_page`, title, image, price, currency, brand, in_stock, `reason`, `next_steps`; for an eBay listing also its shipping cost and return terms (`shipping_cost`, `returns_accepted`, `return_days`, `return_shipping_paid_by`) | 1 | up to 30 s, median 4 |
 | `/v1/resolve` | `id` (a card's `resolve_id`) | `resolved`, `url`, `retailer` | 1 when a link came back, else 0 | about 1 s |
 
