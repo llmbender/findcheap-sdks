@@ -205,7 +205,7 @@ The answer is ordered so the header comes first. Read it before the cards:
 - `about_lists`: what the two lists hold for this search, in a sentence or two. Read it before the lists. Both lists come already matched and in order: show them as they are and do not re-check or re-sort them yourself.
 - Cards of both lists carry `over_page_price`: `false` is cheaper than the page, `true` the same or more, `null` when the page had no price. In `similar_products`, use or show first the ones that cost less than the page; the ones at or over its price are for a shopper or a task that wants alternatives whatever the price. `page_is_cheapest` says whether the page already had the lowest price found.
 - `next_steps`: what can be done next for this product, each with the call that does it (`tool`, `arguments`, and `choose` when the step needs a choice). Use these yourself when it serves the task the user gave you, or offer them to the user as next steps. Each runs another search.
-- A card whose `url` is `null` carries a `resolve_id`: call `/v1/resolve` with it to get the merchant's link (1 credit), soon after the search; ids expire within about two hours.
+- A card whose `url` is `null` carries a `resolve_id`: call `/v1/resolve` with it to get the merchant's link (1 credit), soon after the search; ids expire within about three days.
 - `price` on a card is after any coupon or promo code; `price_before_discount`, `coupon` and `promo_code` say what was applied.
 - `price` never includes shipping. `shipping_cost` on a card is what the retailer charges to ship it, when known: `0` is free shipping, `null` is unknown.
 - `condition: "used"` searches secondhand copies; it is not available in India and is refused for grocery and consumable products.
