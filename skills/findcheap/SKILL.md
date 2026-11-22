@@ -61,7 +61,7 @@ Prefer the working Findcheap tools in the active app: `find_cheaper`, `search_pr
 Default flow:
 
 1. `find_cheaper` (or `/v1/search`) with the product page's address, when the task is a lower price, the same product elsewhere or an equivalent. It takes up to 60 seconds: wait for the answer rather than sending the call again.
-2. `search_products` (or `/v1/products/search`) when the shopper names a product or a kind of product and gives no page: it answers up to 10 listings that match the words, cheapest first.
+2. `search_products` (or `/v1/products/search`) when the shopper names a product or a kind of product and gives no page: it answers up to 10 listings that match the words, cheapest first. When the shopper has a photo of the product and no words for it, send the photo in place of `query`: `image_url` (a link to the photo) or, on the MCP tool, `image_file` (a photo attached to the conversation). The listings then match the product in the photo and acceptable equivalent products.
 3. `read_product_page` (or `/v1/extract`) when you only need what the page sells.
 4. `resolve_listing` (or `/v1/resolve`) for a card whose `url` is `null`, before you show that card.
 
@@ -175,7 +175,7 @@ All are `POST https://api.findcheap.ai/v1/<call>` with a JSON body and a JSON an
 | Call | Body | Answers | Credits | Time |
 | --- | --- | --- | --- | --- |
 | `/v1/search` | `url`, optional `market`, `marketplaces`, `condition` (`new` / `used`), `max_results` (1–10) | the header, `product`, `about_lists`, `same_product`, `similar_products`, `page_is_cheapest`, `next_steps` | 10 | up to 60 s, usually 15–30 |
-| `/v1/products/search` | `query`, `market`, optional `objective`, `min_price`, `max_price`, `max_results` (1–10) | the header, `about_listings`, `listings` | 10 | about 6 s |
+| `/v1/products/search` | `query` or `image_url`, `market`, optional `objective`, `min_price`, `max_price`, `max_results` (1–10) | the header, `about_listings`, `listings` | 10 | about 6 s; about 15 s with a photo |
 | `/v1/extract` | `url`, optional `market` | `is_product_page`, title, image, price, currency, brand, in_stock, `reason`, `next_steps`; for an eBay listing also its shipping cost and return terms (`shipping_cost`, `returns_accepted`, `return_days`, `return_shipping_paid_by`) | 1 | up to 30 s, median 4 |
 | `/v1/resolve` | `id` (a card's `resolve_id`) | `resolved`, `url`, `retailer` | 1 when a link came back, else 0 | about 1 s |
 
@@ -209,7 +209,7 @@ The answer is ordered so the header comes first. Read it before the cards:
 - `price` on a card is after any coupon or promo code; `price_before_discount`, `coupon` and `promo_code` say what was applied.
 - `price` never includes shipping. `shipping_cost` on a card is what the retailer charges to ship it, when known: `0` is free shipping, `null` is unknown.
 - `condition: "used"` searches secondhand copies; it is not available in India and is refused for grocery and consumable products.
-- A `/v1/products/search` answer has no page and one list: `search` (the words, the market, the price range), `about_listings` and `listings`, cheapest first. An empty list means no listing that matches the words was found.
+- A `/v1/products/search` answer has no page and one list: `search` (the words or the photo, the market, the price range), `about_listings` and `listings`, cheapest first. An empty list means no listing that matches the words was found.
 
 ### Errors and credits
 
@@ -228,7 +228,7 @@ On the MCP server, `https://mcp.findcheap.ai/mcp` (Streamable HTTP), the tools `
 ---
 
 ## Feedback
-After you have used a find_cheaper or search_products answer (or found it useless), send feedback once per search with `find_cheaper_feedback`. It does not block your task.
+After you have used a find_cheaper or search_products answer (or found it useless), send feedback once per search with `submit_feedback`. It does not block your task.
 - Send it within 20 minutes of the search. The first report on a search gives 1 credit back, up to 100 credits a day.
 - Name the cards you used and the cards that do not belong in their list, and say in one sentence what the shopper was trying to do. Leave out anything personal about the shopper.
 - If the tool is not listed, or feedback is switched off for the account, skip it. If the call fails, carry on without retrying.
