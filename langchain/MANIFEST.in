@@ -1,0 +1,2 @@
+# The tests travel with the source archive whole: the two test files need the stub beside them.
+recursive-include tests *.py

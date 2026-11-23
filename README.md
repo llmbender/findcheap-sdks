@@ -4,6 +4,7 @@ Thin clients for the Findcheap API (https://findcheap.ai/developers/docs): the t
 
 - `python/` — the `findcheap` package (Python 3.9+, standard library only).
 - `js/` — the `findcheap` package for Node 18+ and the browsers' `fetch` (TypeScript, ESM).
+- `langchain/` — the `langchain-findcheap` package (Python 3.10+): the API's five calls as LangChain tools, over the `findcheap` client. Its tests: `pip install -e ".[test]" && python -m pytest` in `langchain/` (offline). A release: raise the version in `langchain/pyproject.toml` and `langchain/src/langchain_findcheap/_version.py`, then `python -m build` + `twine upload dist/*` there.
 - `.cursor-plugin/plugin.json`, `mcp.json`, `assets/logo.svg` — the Cursor plugin: this repository's root is the plugin. It adds Findcheap's MCP server (`https://mcp.findcheap.ai/mcp`: `find_cheaper`, `search_products`, `read_product_page`, `resolve_listing`) and the skill below. There is no key to paste: Cursor signs you in with your Findcheap account (an account is free), through the client id in `mcp.json`. The same server by hand, and for other assistants: https://findcheap.ai/developers/mcp.
 - `skills/findcheap/SKILL.md` — the agent skill, for coding assistants: `npx skills add llmbender/findcheap-sdks --skill findcheap` installs it into Claude Code, Cursor, Codex and others (`-a claude-code` picks one). The same file is served at https://findcheap.ai/skills/findcheap/SKILL.md; the website's `scripts/llms-check.ts` fails when the two copies differ.
 
