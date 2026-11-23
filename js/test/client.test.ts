@@ -50,6 +50,11 @@ const server = createServer((req, res) => {
     // The search by words: words that match nothing answer an empty list (a 200, charged), and a market
     // the API does not serve is refused in its own words.
     if (req.url === "/v1/products/search") {
+      // A search needs one of the words, a photo's link or a photo's file, and only one (the API's own rule).
+      const named = ["query", "image_url", "image_base64"].filter((k) => k in body);
+      if (named.length !== 1) return send(res, 400, { error: { type: "invalid_request", message: named.length ? "Send only one of `query`, `image_url` and `image_base64`." : "Send `query`, `image_url` or `image_base64`.", credits_used: 0, request_id: "e-7" } });
+      if ("image_url" in body) return send(res, 200, { ...PRODUCTS, search: { image_url: body.image_url, market: "US", min_price: null, max_price: null, max_results: 10 } });
+      if ("image_base64" in body) return send(res, 200, { ...PRODUCTS, search: { image_file: "sha256:0123456789abcdef", market: "US", min_price: null, max_price: null, max_results: 10 } });
       if (body.market === "ZZ") return send(res, 400, { error: { type: "unknown_market", message: "market must be one of US, CA, AU, IN, GLOBAL.", credits_used: 0, request_id: "e-6" } });
       return send(res, 200, body.query === "a product no store carries" ? NO_PRODUCTS : PRODUCTS);
     }
@@ -107,6 +112,18 @@ test("searchProducts with nothing found is an empty list, not an error; a market
   assert.equal(out.credits_used, 10);
   await assert.rejects(client().searchProducts("TV", { market: "ZZ" }), (e: unknown) =>
     e instanceof FindcheapApiError && e.status === 400 && e.type === "unknown_market" && e.credits_used === 0);
+});
+
+test("searchProducts by a photo: its link or its file travels in place of the words, and the API refuses none or two of the three", async () => {
+  const byLink = await client().searchProducts(null, { market: "US", image_url: "https://example.com/photos/headphones.jpg" });
+  assert.deepEqual(seen.at(-1)!.body, { market: "US", image_url: "https://example.com/photos/headphones.jpg" });   // no `query` key at all
+  assert.equal(byLink.search.image_url, "https://example.com/photos/headphones.jpg");
+  assert.equal("query" in byLink.search, false);
+  const byFile = await client().searchProducts(null, { market: "US", image_base64: "/9j/4AAQSkZJRg==", max_results: 3 });
+  assert.deepEqual(seen.at(-1)!.body, { market: "US", image_base64: "/9j/4AAQSkZJRg==", max_results: 3 });
+  assert.equal(byFile.search.image_file, "sha256:0123456789abcdef");               // the file is named by a fingerprint, never echoed
+  for (const call of [() => client().searchProducts(null, { market: "US" }), () => client().searchProducts("TV", { market: "US", image_url: "https://example.com/p.jpg" })])
+    await assert.rejects(call(), (e: unknown) => e instanceof FindcheapApiError && e.status === 400 && e.type === "invalid_request" && e.credits_used === 0);
 });
 
 test("extract and resolve", async () => {

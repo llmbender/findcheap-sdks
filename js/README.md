@@ -40,6 +40,23 @@ for (const card of found.listings) console.log(card.price, card.currency, card.r
 
 It answers up to 10 listings that match the words, cheapest first, and costs 10 credits, with or without listings. `market` is required: there is no address to infer it from. `objective` (what the shopper wants, in one sentence), `min_price`, `max_price` and `max_results` are optional.
 
+## Search by image
+
+`searchProducts` also takes a photo in place of the words: `image_url`, a link to the photo, or `image_base64`, the photo's file itself. Pass `null` as the query and send only one of the three. Use it when the shopper has a photo of the product and no words for it:
+
+```ts
+import { readFile } from "node:fs/promises";
+
+const byLink = await fc.searchProducts(null, { market: "US", image_url: "https://example.com/photos/headphones.jpg" });
+
+const image_base64 = (await readFile("photo.jpg")).toString("base64");
+const byFile = await fc.searchProducts(null, { market: "US", image_base64 });
+```
+
+It answers up to 10 listings, cheapest first: listings that match the product in the photo and acceptable equivalent products. It usually answers in about 15 seconds and costs 10 credits, with or without listings. A file is a JPEG, PNG or WebP of 10 MB at most.
+
+A photo you send is shared with the stores and search services Findcheap uses to run the search. A photo sent as `image_base64` is redrawn before it is searched or kept: the data a camera stores in the file beside the picture (where and when it was taken, the device) is removed.
+
 ## Feedback on a search
 
 `feedback` reports how a search went, by the `request_id` of its answer:

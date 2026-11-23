@@ -56,8 +56,15 @@ export interface Card {
   [extra: string]: unknown;
 }
 
-/** What a search by words searched: the words as sent, the market, the price range (null when none was sent), the cap. */
-export interface ProductsSearchEcho { query: string; market: string; min_price: number | null; max_price: number | null; max_results: number }
+/**
+ * What a search by words or by photo searched, as sent. One of the first three names it: `query` for words,
+ * `image_url` for a photo's link, `image_file` for a photo sent as image_base64 ("sha256:" and the first 16 characters
+ * of the file's SHA-256). Then the market, the price range (null when none was sent) and the cap.
+ */
+export interface ProductsSearchEcho {
+  query?: string | null; image_url?: string | null; image_file?: string;
+  market: string; min_price: number | null; max_price: number | null; max_results: number;
+}
 
 export interface ProductsSearchAnswer {
   request_id: string; search: ProductsSearchEcho;
@@ -119,10 +126,14 @@ export interface FeedbackAnswer {
 
 export interface SearchOptions { market?: string; marketplaces?: Marketplace[] | string[]; condition?: Condition; max_results?: number; signal?: AbortSignal }
 export interface ExtractOptions { market?: string; signal?: AbortSignal }
-/** A search by words: `market` is required (US, CA, AU, IN or GLOBAL: there is no address to infer it from); the rest is optional. `signal` cancels the call. */
+/** A search by words or by photo: `market` is required (US, CA, AU, IN or GLOBAL: there is no address to infer it from); the rest is optional. `signal` cancels the call. */
 export interface ProductsSearchOptions {
   /** The shopper's market, the country they are buying in. */
   market: string;
+  /** A photo of the product, as a public https link to the image, when the shopper has a photo instead of words. Pass `null` as the query. */
+  image_url?: string;
+  /** A photo of the product itself, as base64 text, when there is no link to it: a JPEG, PNG or WebP of 10 MB at most. Pass `null` as the query. */
+  image_base64?: string;
   /** What the shopper wants, in one sentence. Nothing personal about the shopper. */
   objective?: string;
   /** The lowest price to include, in the market's currency. */
@@ -240,9 +251,16 @@ export class Findcheap {
    * 6 s, at most 60). For when there is no product page to start from; with a page's address, search() finds that
    * product for less. `query` is what the shopper is looking for, in the shopper's own words: a kind of product ("TV")
    * or a named product ("Insignia Fire TV"), one product per call. Only the options given travel.
+   *
+   * Or search from a photo, when the shopper has a photo of the product and no words for it: pass `null` as the query
+   * and give `image_url` (a link to the photo) or `image_base64` (the photo's file itself) in the options. Send only one
+   * of the three; the API refuses a call with none or with more than one. With a photo it usually takes about 15 s.
    */
-  searchProducts(query: string, options: ProductsSearchOptions): Promise<ProductsSearchAnswer> {
-    const body: Record<string, unknown> = { query, market: options.market };
+  searchProducts(query: string | null, options: ProductsSearchOptions): Promise<ProductsSearchAnswer> {
+    const body: Record<string, unknown> = { market: options.market };
+    if (query !== null && query !== undefined) body.query = query;
+    if (options.image_url !== undefined) body.image_url = options.image_url;
+    if (options.image_base64 !== undefined) body.image_base64 = options.image_base64;
     if (options.objective !== undefined) body.objective = options.objective;
     if (options.min_price !== undefined) body.min_price = options.min_price;
     if (options.max_price !== undefined) body.max_price = options.max_price;

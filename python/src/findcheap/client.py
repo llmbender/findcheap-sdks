@@ -1,5 +1,5 @@
-"""The client: the three calls, the search by words and the feedback on a
-search, each a POST over urllib, the answer as the API sends it.
+"""The client: the three calls, the search by words or by photo and the
+feedback on a search, each a POST over urllib, the answer as the API sends it.
 
 Nothing is reshaped. A search answer opens with `request_id` and `search`
 (what was searched), then `product`, `product_name`, `about_lists` (one
@@ -8,7 +8,7 @@ sentence saying what the two lists hold for this search), `same_product`,
 next, each with the call that does it), `credits_used`; the TypedDicts
 below name the fields for an editor, and `extra="allow"` on the API's
 side means a field added later arrives here untouched. A search by words
-(search_products) has no page: its answer is `request_id`, `search`,
+or by photo (search_products) has no page: its answer is `request_id`, `search`,
 `about_listings` (one sentence saying what the list holds), `listings`,
 `credits_used`.
 """
@@ -104,9 +104,13 @@ class Card(TypedDict, total=False):
     shipping_cost: Optional[float]    # what the retailer charges to ship it: 0 = free, None = unknown; `price` does not include it
 
 
-class ProductsSearchEcho(TypedDict):
-    """What a search by words searched: the words as sent, the market, the price range, the cap."""
-    query: str
+class ProductsSearchEcho(TypedDict, total=False):
+    """What a search by words or by photo searched, as sent. One of the first three names it: `query`
+    for words, `image_url` for a photo's link, `image_file` for a photo sent as image_base64. Then
+    the market, the price range and the cap, which are always there."""
+    query: Optional[str]              # the words as sent
+    image_url: Optional[str]          # the photo's link as sent
+    image_file: str                   # a photo sent as image_base64: "sha256:" and the first 16 characters of the file's SHA-256
     market: str
     min_price: Optional[float]        # None when none was sent
     max_price: Optional[float]        # None when none was sent
@@ -117,10 +121,10 @@ class ProductsSearchAnswer(TypedDict):
     request_id: str
     search: ProductsSearchEcho
     about_listings: str               # what the list holds for this search; read it before the list
-    # Listings that match the words, cheapest first, up to 10; empty when none was found. A listing is a
+    # Listings that match the words or the photo, cheapest first, up to 10; empty when none was found. A listing is a
     # Card without over_page_price and normalized_price: there is no page to compare a price with.
     listings: List[Card]
-    credits_used: int                 # 10 for a search by words, with or without listings
+    credits_used: int                 # 10 for a search by words or by photo, with or without listings
 
 
 class NextStep(TypedDict):
@@ -264,7 +268,8 @@ class Findcheap:
             body["max_results"] = max_results
         return self._post("/v1/search", body, SEARCH_TIMEOUT_S)  # type: ignore[return-value]
 
-    def search_products(self, query: str, *, market: str, objective: Optional[str] = None,
+    def search_products(self, query: Optional[str] = None, *, market: str, image_url: Optional[str] = None,
+                        image_base64: Optional[str] = None, objective: Optional[str] = None,
                         min_price: Optional[float] = None, max_price: Optional[float] = None,
                         max_results: Optional[int] = None) -> ProductsSearchAnswer:
         """Listings that match a description in words, cheapest first (10 credits, with or without
@@ -276,8 +281,20 @@ class Findcheap:
         for (the brand, the model, a size, a colour). `market` is the shopper's country (US, CA, AU, IN or
         GLOBAL) and is required: there is no address to infer it from. `objective` is one sentence on
         what the shopper wants, never anything personal about them. `min_price` and `max_price` are in
-        the market's currency. Only the options given travel in the body."""
-        body: Dict[str, Any] = {"query": query, "market": market}
+        the market's currency. Only the options given travel in the body.
+
+        Or search from a photo, when the shopper has a photo of the product and no words for it: give
+        `image_url`, a public https link to the photo, or `image_base64`, the photo's file itself as
+        base64 text (a JPEG, PNG or WebP of 10 MB at most), in place of `query`. Send only one of the
+        three; the API refuses a call with none or with more than one. With a photo it usually takes
+        about 15 s."""
+        body: Dict[str, Any] = {"market": market}
+        if query is not None:
+            body["query"] = query
+        if image_url is not None:
+            body["image_url"] = image_url
+        if image_base64 is not None:
+            body["image_base64"] = image_base64
         if objective is not None:
             body["objective"] = objective
         if min_price is not None:

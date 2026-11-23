@@ -59,6 +59,14 @@ class Stub(BaseHTTPRequestHandler):
         # The search by words: words that match nothing answer an empty list (a 200, charged), and a market
         # the API does not serve is refused in its own words.
         if self.path == "/v1/products/search":
+            # A search needs one of the words, a photo's link or a photo's file, and only one (the API's own rule).
+            named = [k for k in ("query", "image_url", "image_base64") if k in body]
+            if len(named) != 1:
+                return self._send(400, {"error": {"type": "invalid_request", "message": "Send `query`, `image_url` or `image_base64`." if not named else "Send only one of `query`, `image_url` and `image_base64`.", "credits_used": 0, "request_id": "e-7"}})
+            if "image_url" in body:
+                return self._send(200, {**PRODUCTS, "search": {"image_url": body["image_url"], "market": "US", "min_price": None, "max_price": None, "max_results": 10}})
+            if "image_base64" in body:
+                return self._send(200, {**PRODUCTS, "search": {"image_file": "sha256:0123456789abcdef", "market": "US", "min_price": None, "max_price": None, "max_results": 10}})
             if body.get("market") == "ZZ":
                 return self._send(400, {"error": {"type": "unknown_market", "message": "market must be one of US, CA, AU, IN, GLOBAL.", "credits_used": 0, "request_id": "e-6"}})
             return self._send(200, NO_PRODUCTS if body.get("query") == "a product no store carries" else PRODUCTS)
@@ -129,6 +137,27 @@ class ClientTest(unittest.TestCase):
             self.fc.search_products("TV")                    # no address to infer the market from
         with self.assertRaises(TypeError):
             self.fc.search_products("TV", "US")              # the market is given by name, as the options are
+
+    def test_search_products_by_a_photos_link_sends_the_link_in_place_of_the_words(self):
+        seen.clear()
+        out = self.fc.search_products(market="US", image_url="https://example.com/photos/headphones.jpg")
+        self.assertEqual(seen[-1][0], "/v1/products/search")
+        self.assertEqual(seen[-1][2], {"market": "US", "image_url": "https://example.com/photos/headphones.jpg"})   # no `query` key at all
+        self.assertEqual(out["search"]["image_url"], "https://example.com/photos/headphones.jpg")
+        self.assertNotIn("query", out["search"])
+        self.assertEqual(out["credits_used"], 10)
+
+    def test_search_products_by_a_photos_file_sends_it_as_base64_text(self):
+        seen.clear()
+        out = self.fc.search_products(market="US", image_base64="/9j/4AAQSkZJRg==", max_results=3)
+        self.assertEqual(seen[-1][2], {"market": "US", "image_base64": "/9j/4AAQSkZJRg==", "max_results": 3})
+        self.assertEqual(out["search"]["image_file"], "sha256:0123456789abcdef")   # the file is named by a fingerprint, never echoed
+
+    def test_search_products_with_none_or_two_of_the_three_is_refused_by_the_api_not_by_the_client(self):
+        for kwargs in ({"market": "US"}, {"query": "TV", "market": "US", "image_url": "https://example.com/p.jpg"}):
+            with self.assertRaises(FindcheapApiError) as caught:
+                self.fc.search_products(**kwargs)
+            self.assertEqual((caught.exception.status, caught.exception.type, caught.exception.credits_used), (400, "invalid_request", 0))
 
     def test_search_products_with_nothing_found_is_an_empty_list_not_an_error(self):
         out = self.fc.search_products("a product no store carries", market="IN")
