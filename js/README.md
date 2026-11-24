@@ -22,6 +22,8 @@ if (page.is_product_page) console.log(page.title, page.price, page.currency);
 const link = await fc.resolve(answer.similar_products[0].resolve_id!); // for a card whose url is null
 ```
 
+`search` and `extract` take an optional `objective`: what the shopper wants, in one sentence.
+
 Every answer opens with `request_id` and closes with `credits_used`. A failed call throws `FindcheapApiError` with `status`, `type`, `message`, `credits_used`, `request_id` and `retry_after` (seconds, on a 429); a call that never reached the API throws `FindcheapConnectionError`. Both extend `FindcheapError`.
 
 Timeouts sit above the API's own ceilings (a search answers within 60 seconds, a read within 30): 100, 40 and 20 seconds for search, extract and resolve, 20 for feedback, or one `timeoutMs` for every call. Pass your own `signal` to cancel a call.

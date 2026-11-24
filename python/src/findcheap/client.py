@@ -22,7 +22,7 @@ import urllib.parse
 import urllib.request
 from typing import Any, Dict, List, Literal, Optional, TypedDict
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 DEFAULT_BASE_URL = "https://api.findcheap.ai"
 # Above the API's own walls (a search answers within 60 s, a read within 30),
@@ -254,12 +254,16 @@ class Findcheap:
     # ── The three calls ──────────────────────────────────────────────
 
     def search(self, url: str, *, market: Optional[str] = None, marketplaces: Optional[List[str]] = None,
-               condition: Condition = "new", max_results: Optional[int] = None) -> SearchAnswer:
+               condition: Condition = "new", max_results: Optional[int] = None,
+               objective: Optional[str] = None) -> SearchAnswer:
         """Where the product on the page is sold for less (10 credits; up to 60 s). Only the options
-        given travel in the body, so the API's defaults apply to the rest."""
+        given travel in the body, so the API's defaults apply to the rest. `objective` is one sentence
+        on what the shopper wants, never anything personal about them."""
         body: Dict[str, Any] = {"url": url}
         if market is not None:
             body["market"] = market
+        if objective is not None:
+            body["objective"] = objective
         if marketplaces is not None:
             body["marketplaces"] = list(marketplaces)
         if condition != "new":
@@ -305,11 +309,14 @@ class Findcheap:
             body["max_results"] = max_results
         return self._post("/v1/products/search", body, SEARCH_TIMEOUT_S)  # type: ignore[return-value]
 
-    def extract(self, url: str, *, market: Optional[str] = None) -> ReadAnswer:
-        """What the page sells, without a search (1 credit; up to 30 s)."""
+    def extract(self, url: str, *, market: Optional[str] = None, objective: Optional[str] = None) -> ReadAnswer:
+        """What the page sells, without a search (1 credit; up to 30 s). `objective` is one sentence
+        on what the shopper wants, never anything personal about them."""
         body: Dict[str, Any] = {"url": url}
         if market is not None:
             body["market"] = market
+        if objective is not None:
+            body["objective"] = objective
         return self._post("/v1/extract", body, EXTRACT_TIMEOUT_S)  # type: ignore[return-value]
 
     def resolve(self, resolve_id: str) -> ResolveAnswer:

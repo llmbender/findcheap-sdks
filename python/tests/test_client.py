@@ -170,6 +170,15 @@ class ClientTest(unittest.TestCase):
             self.fc.search_products("TV", market="ZZ")
         self.assertEqual((caught.exception.status, caught.exception.type, caught.exception.credits_used), (400, "unknown_market", 0))
 
+    def test_search_and_extract_send_the_objective_only_when_it_is_given(self):
+        sentence = "A kettle for a small kitchen."
+        self.fc.search("https://shop.example.com/p/1", objective=sentence)
+        self.assertEqual(seen[-1][2], {"url": "https://shop.example.com/p/1", "objective": sentence})
+        self.fc.extract("https://shop.example.com/p/1", objective=sentence)
+        self.assertEqual((seen[-1][0], seen[-1][2]), ("/v1/extract", {"url": "https://shop.example.com/p/1", "objective": sentence}))
+        self.fc.extract("https://shop.example.com/p/1")
+        self.assertEqual(seen[-1][2], {"url": "https://shop.example.com/p/1"})
+
     def test_extract_and_resolve(self):
         self.assertEqual(self.fc.extract("https://shop.example.com/p/1", market="US")["title"], "Kettle")
         self.assertEqual(seen[-1][2], {"url": "https://shop.example.com/p/1", "market": "US"})

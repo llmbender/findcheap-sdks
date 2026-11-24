@@ -27,6 +27,7 @@ HERE = os.path.dirname(__file__)
 # The names of Findcheap's MCP server's tools, in the order it lists them.
 NAMES = ["find_cheaper", "read_product_page", "resolve_listing", "search_products", "submit_feedback"]
 OBJECTIVE = "A small TV for a bedroom, as cheap as possible."
+WANT = "A kettle for a small kitchen."
 
 
 @pytest.fixture()
@@ -60,8 +61,8 @@ def test_what_each_tool_requires(server):
     required = {name: sorted(convert_to_openai_tool(tool)["function"]["parameters"].get("required", []))
                 for name, tool in tools(server).items()}
     assert required == {
-        "find_cheaper": ["url"],
-        "read_product_page": ["url"],
+        "find_cheaper": ["objective", "url"],
+        "read_product_page": ["objective", "url"],
         "resolve_listing": ["resolve_id"],
         "search_products": ["market", "objective"],
         "submit_feedback": ["rating", "request_id"],
@@ -71,9 +72,9 @@ def test_what_each_tool_requires(server):
 # ── What goes on the wire ──────────────────────────────────────────────────
 
 def test_find_cheaper_sends_only_what_was_given_and_answers_untouched(server):
-    answer = tools(server)["find_cheaper"].invoke({"url": "https://shop.example.com/p/1"})
+    answer = tools(server)["find_cheaper"].invoke({"url": "https://shop.example.com/p/1", "objective": WANT})
     path, headers, body = server.seen[-1]
-    assert (path, body) == ("/v1/search", {"url": "https://shop.example.com/p/1"})
+    assert (path, body) == ("/v1/search", {"url": "https://shop.example.com/p/1", "objective": WANT})
     assert answer == api.SEARCH
     assert headers["Authorization"] == f"Bearer {api.KEY}"
     # The API is told the call came through this package, then the client.
@@ -81,25 +82,26 @@ def test_find_cheaper_sends_only_what_was_given_and_answers_untouched(server):
 
 
 def test_find_cheaper_sends_every_option(server):
-    tools(server)["find_cheaper"].invoke({"url": "https://shop.example.com/p/1", "market": "CA",
+    tools(server)["find_cheaper"].invoke({"url": "https://shop.example.com/p/1", "objective": WANT, "market": "CA",
                                           "marketplaces": ["ebay", "walmart"], "condition": "used", "max_results": 3})
-    assert server.seen[-1][2] == {"url": "https://shop.example.com/p/1", "market": "CA",
+    assert server.seen[-1][2] == {"url": "https://shop.example.com/p/1", "objective": WANT, "market": "CA",
                                   "marketplaces": ["ebay", "walmart"], "condition": "used", "max_results": 3}
 
 
-def test_an_answers_next_step_runs_as_it_is_written(server):
+def test_an_answers_next_step_names_this_packages_tool_and_fields(server):
     """`next_steps` name a tool and its arguments in the MCP server's words;
-    the same names and fields are this package's, so a step runs unchanged."""
+    the same names and fields are this package's, so a step runs once the
+    sentence on what the shopper wants is added to it."""
     kit = tools(server)
-    step = kit["find_cheaper"].invoke({"url": "https://shop.example.com/p/1"})["next_steps"][0]
-    kit[step["tool"]].invoke(step["arguments"])
-    assert server.seen[-1][2] == {"url": "https://shop.example.com/p/1", "market": "US", "condition": "used"}
+    step = kit["find_cheaper"].invoke({"url": "https://shop.example.com/p/1", "objective": WANT})["next_steps"][0]
+    kit[step["tool"]].invoke({**step["arguments"], "objective": WANT})
+    assert server.seen[-1][2] == {"url": "https://shop.example.com/p/1", "market": "US", "condition": "used", "objective": WANT}
 
 
 def test_read_product_page(server):
-    answer = tools(server)["read_product_page"].invoke({"url": "https://shop.example.com/p/1", "market": "US"})
+    answer = tools(server)["read_product_page"].invoke({"url": "https://shop.example.com/p/1", "objective": WANT, "market": "US"})
     assert server.seen[-1][0] == "/v1/extract"
-    assert server.seen[-1][2] == {"url": "https://shop.example.com/p/1", "market": "US"}
+    assert server.seen[-1][2] == {"url": "https://shop.example.com/p/1", "market": "US", "objective": WANT}
     assert answer == api.READ
 
 
@@ -149,19 +151,19 @@ def call(name, args):
 
 
 def test_a_models_tool_call_gets_the_answer_as_json_text(server):
-    message = tools(server)["read_product_page"].invoke(call("read_product_page", {"url": "https://shop.example.com/p/1"}))
+    message = tools(server)["read_product_page"].invoke(call("read_product_page", {"url": "https://shop.example.com/p/1", "objective": WANT}))
     assert isinstance(message, ToolMessage) and message.status == "success"
     assert '"title": "Kettle"' in message.content and '"credits_used": 1' in message.content
 
 
 def test_a_refused_call_reaches_the_model_in_the_apis_words(server):
-    message = tools(server)["find_cheaper"].invoke(call("find_cheaper", {"url": "https://en.wikipedia.org/wiki/Shoe"}))
+    message = tools(server)["find_cheaper"].invoke(call("find_cheaper", {"url": "https://en.wikipedia.org/wiki/Shoe", "objective": WANT}))
     assert message.status == "error"
     assert "422 not_searchable: Not a product page. Billed as a page read: 1 credit." in message.content
 
 
 def test_a_rate_limit_says_how_long_to_wait(server):
-    message = tools(server)["read_product_page"].invoke(call("read_product_page", {"url": "https://slow.example/p"}))
+    message = tools(server)["read_product_page"].invoke(call("read_product_page", {"url": "https://slow.example/p", "objective": WANT}))
     assert message.status == "error" and "429 rate_limited" in message.content
     assert "Retry after 7 seconds." in message.content
 
@@ -173,7 +175,7 @@ def test_the_api_judges_a_search_that_names_no_product(server):
 
 def test_an_api_that_cannot_be_reached_is_a_tool_error_too():
     tool = FindcheapReadProductPage(api_key=api.KEY, base_url="http://127.0.0.1:9", timeout=2)
-    message = tool.invoke(call("read_product_page", {"url": "https://shop.example.com/p/1"}))
+    message = tool.invoke(call("read_product_page", {"url": "https://shop.example.com/p/1", "objective": WANT}))
     assert message.status == "error" and "Findcheap could not be reached" in message.content
 
 
@@ -182,7 +184,11 @@ def test_an_api_that_cannot_be_reached_is_a_tool_error_too():
 def test_arguments_outside_the_apis_limits_never_leave(server):
     kit = tools(server)
     with pytest.raises(ValidationError):
-        kit["find_cheaper"].invoke({"url": "https://shop.example.com/p/1", "max_results": 11})
+        kit["find_cheaper"].invoke({"url": "https://shop.example.com/p/1", "objective": WANT, "max_results": 11})
+    with pytest.raises(ValidationError):
+        kit["find_cheaper"].invoke({"url": "https://shop.example.com/p/1"})                                    # no objective
+    with pytest.raises(ValidationError):
+        kit["read_product_page"].invoke({"url": "https://shop.example.com/p/1"})                               # no objective
     with pytest.raises(ValidationError):
         kit["search_products"].invoke({"query": "TV", "market": "US"})            # no objective
     with pytest.raises(ValidationError):
@@ -212,7 +218,7 @@ def test_no_key_is_a_set_up_error_the_developer_sees(server):
     with mock.patch.dict(os.environ, clear=True):
         tool = FindcheapFindCheaper(base_url=server.url)
         with pytest.raises(ValueError, match="FINDCHEAP_API_KEY"):
-            tool.invoke({"url": "https://shop.example.com/p/1"})
+            tool.invoke({"url": "https://shop.example.com/p/1", "objective": WANT})
     assert server.seen == []
 
 
@@ -221,15 +227,15 @@ def test_a_ready_client_is_used_as_it_is():
         def __init__(self):
             self.calls = []
 
-        def extract(self, url, *, market=None):
-            self.calls.append((url, market))
+        def extract(self, url, *, market=None, objective=None):
+            self.calls.append((url, market, objective))
             return api.READ
 
     client = Client()
     with mock.patch.dict(os.environ, clear=True):
         tool = FindcheapToolkit(client=client).get_tools()[1]
-        assert tool.invoke({"url": "https://shop.example.com/p/1"}) == api.READ
-    assert client.calls == [("https://shop.example.com/p/1", None)]
+        assert tool.invoke({"url": "https://shop.example.com/p/1", "objective": WANT}) == api.READ
+    assert client.calls == [("https://shop.example.com/p/1", None, WANT)]
 
 
 # ── The package's own facts ────────────────────────────────────────────────

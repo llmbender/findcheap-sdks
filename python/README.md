@@ -24,6 +24,8 @@ if page["is_product_page"]:
 link = fc.resolve(answer["similar_products"][0]["resolve_id"])  # for a card whose url is None
 ```
 
+`search` and `extract` take an optional `objective`: what the shopper wants, in one sentence.
+
 Every answer opens with `request_id` and closes with `credits_used`. A failed call raises `FindcheapApiError` with `.status`, `.type`, `.message`, `.credits_used`, `.request_id` and `.retry_after` (seconds, on a 429); a call that never reached the API raises `FindcheapConnectionError`. Both subclass `FindcheapError`.
 
 Timeouts sit above the API's own ceilings (a search answers within 60 seconds, a read within 30): 100, 40 and 20 seconds for search, extract and resolve, 20 for feedback, or one `timeout=` for every call.

@@ -126,6 +126,17 @@ test("searchProducts by a photo: its link or its file travels in place of the wo
     await assert.rejects(call(), (e: unknown) => e instanceof FindcheapApiError && e.status === 400 && e.type === "invalid_request" && e.credits_used === 0);
 });
 
+test("search and extract send the objective only when it is given", async () => {
+  const objective = "A kettle for a small kitchen.";
+  await client().search("https://shop.example.com/p/1", { objective });
+  assert.deepEqual(seen.at(-1)!.body, { url: "https://shop.example.com/p/1", objective });
+  await client().extract("https://shop.example.com/p/1", { objective });
+  assert.equal(seen.at(-1)!.path, "/v1/extract");
+  assert.deepEqual(seen.at(-1)!.body, { url: "https://shop.example.com/p/1", objective });
+  await client().extract("https://shop.example.com/p/1");
+  assert.deepEqual(seen.at(-1)!.body, { url: "https://shop.example.com/p/1" });
+});
+
 test("extract and resolve", async () => {
   assert.equal((await client().extract("https://shop.example.com/p/1", { market: "US" })).title, "Kettle");
   assert.deepEqual(seen.at(-1)!.body, { url: "https://shop.example.com/p/1", market: "US" });

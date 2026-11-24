@@ -20,8 +20,10 @@ from . import stub as api
 
 # Each tool with one example of what a model would send it.
 TOOLS = {
-    "find_cheaper": (FindcheapFindCheaper, {"url": "https://shop.example.com/p/1"}),
-    "read_product_page": (FindcheapReadProductPage, {"url": "https://shop.example.com/p/1"}),
+    "find_cheaper": (FindcheapFindCheaper, {"url": "https://shop.example.com/p/1",
+                                            "objective": "A kettle for a small kitchen."}),
+    "read_product_page": (FindcheapReadProductPage, {"url": "https://shop.example.com/p/1",
+                                                     "objective": "What this kettle costs."}),
     "resolve_listing": (FindcheapResolveListing, {"resolve_id": "abc"}),
     "search_products": (FindcheapSearchProducts, {"query": "Insignia Fire TV", "market": "US",
                                                   "objective": "A small TV for a bedroom, as cheap as possible."}),

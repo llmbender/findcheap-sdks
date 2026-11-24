@@ -9,7 +9,7 @@ reshaped, so the API's reference describes every field an agent reads
 The tools carry the names of Findcheap's MCP server's tools
 (https://mcp.findcheap.ai/mcp) and its descriptions, word for word where the
 API and the server do the same thing. An answer's `next_steps` name the tool
-to call next by those names, so they work here as they do there.
+to call next by those names, with these fields.
 """
 from __future__ import annotations
 
@@ -57,6 +57,10 @@ _IMAGE_URL = (
 _OBJECTIVE = (
     "What the shopper wants, in one sentence: what it is for and what matters to them. Not a copy of query. "
     "Nothing personal about the shopper.")
+# The same field on find_cheaper and read_product_page, which have no `query` to be a copy of.
+_PAGE_OBJECTIVE = (
+    "What the shopper wants, in one sentence: what it is for and what matters to them. Nothing personal "
+    "about the shopper.")
 _WORDS_MARKET = (
     "The shopper's market, the country they are buying in: US, CA, AU, IN or GLOBAL. Ask the shopper when "
     "you cannot tell.")
@@ -90,11 +94,16 @@ _WRONG_REASON = (
 # instead of refusing it; a limit in these models would turn that cut into a
 # refused call. (A limit written as a schema hint would not reach a model
 # either: LangChain keeps a field's type and description, not its hints.)
+#
+# `objective` is required on the three tools that have it, as the MCP server
+# lists it: a model then writes it on every call. The API itself takes it as
+# optional; code that calls the client directly may leave it out.
 
 class FindCheaperInput(BaseModel):
     """The arguments of find_cheaper."""
 
     url: str = Field(description=_URL)
+    objective: str = Field(description=_PAGE_OBJECTIVE)
     market: Optional[str] = Field(default=None, description=_MARKET)
     marketplaces: Optional[List[str]] = Field(default=None, description=_MARKETPLACES)
     condition: Literal["new", "used"] = Field(default="new", description=_CONDITION)
@@ -105,6 +114,7 @@ class ReadProductPageInput(BaseModel):
     """The arguments of read_product_page."""
 
     url: str = Field(description=_URL)
+    objective: str = Field(description=_PAGE_OBJECTIVE)
     market: Optional[str] = Field(default=None, description=_MARKET)
 
 
@@ -310,7 +320,8 @@ class FindcheapFindCheaper(_FindcheapTool):
         from langchain_findcheap import FindcheapFindCheaper
 
         tool = FindcheapFindCheaper()
-        tool.invoke({"url": "https://findcheap.ai/sample-product"})
+        tool.invoke({"url": "https://findcheap.ai/sample-product",
+                     "objective": "These shoes for less, new."})
         ```
     """
 
@@ -318,11 +329,13 @@ class FindcheapFindCheaper(_FindcheapTool):
     description: str = FIND_CHEAPER_DESCRIPTION
     args_schema: type[BaseModel] = FindCheaperInput
 
-    def _run(self, url: str, market: Optional[str] = None, marketplaces: Optional[List[str]] = None,
-             condition: Literal["new", "used"] = "new", max_results: Optional[int] = None,
+    def _run(self, url: str, objective: str, market: Optional[str] = None,
+             marketplaces: Optional[List[str]] = None, condition: Literal["new", "used"] = "new",
+             max_results: Optional[int] = None,
              run_manager: Optional[CallbackManagerForToolRun] = None) -> Dict[str, Any]:
         return self._ask(lambda fc: fc.search(
-            url, market=market, marketplaces=marketplaces, condition=condition, max_results=max_results))
+            url, market=market, marketplaces=marketplaces, condition=condition, max_results=max_results,
+            objective=objective))
 
 
 class FindcheapReadProductPage(_FindcheapTool):
@@ -333,7 +346,8 @@ class FindcheapReadProductPage(_FindcheapTool):
         from langchain_findcheap import FindcheapReadProductPage
 
         tool = FindcheapReadProductPage()
-        tool.invoke({"url": "https://findcheap.ai/sample-product"})
+        tool.invoke({"url": "https://findcheap.ai/sample-product",
+                     "objective": "What these shoes cost today."})
         ```
     """
 
@@ -341,9 +355,9 @@ class FindcheapReadProductPage(_FindcheapTool):
     description: str = READ_PRODUCT_PAGE_DESCRIPTION
     args_schema: type[BaseModel] = ReadProductPageInput
 
-    def _run(self, url: str, market: Optional[str] = None,
+    def _run(self, url: str, objective: str, market: Optional[str] = None,
              run_manager: Optional[CallbackManagerForToolRun] = None) -> Dict[str, Any]:
-        return self._ask(lambda fc: fc.extract(url, market=market))
+        return self._ask(lambda fc: fc.extract(url, market=market, objective=objective))
 
 
 class FindcheapResolveListing(_FindcheapTool):

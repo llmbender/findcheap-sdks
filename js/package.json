@@ -1,6 +1,6 @@
 {
   "name": "findcheap",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Find where the product on a page is sold for less: the Findcheap API's search, extract and resolve calls.",
   "type": "module",
   "main": "./dist/index.js",

@@ -19,7 +19,7 @@ classifiers = [
 # The Findcheap client does the calls (standard library only); langchain-core
 # gives the tool classes. The lower bound of langchain-core is the oldest
 # version the tests were run against.
-dependencies = ["findcheap>=0.3.0,<1.0.0", "langchain-core>=1.4.0,<2.0.0"]
+dependencies = ["findcheap>=0.4.0,<1.0.0", "langchain-core>=1.4.0,<2.0.0"]
 
 [project.optional-dependencies]
 # What the tests need: pytest, and LangChain's own standard tests for tools.

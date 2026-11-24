@@ -34,7 +34,9 @@ Any chat model that calls tools works. This example also needs `pip install lang
 | `resolve_listing` | `FindcheapResolveListing` | Gives the merchant's link for a card that came with a `resolve_id`. | 1 when a link came back |
 | `submit_feedback` | `FindcheapSubmitFeedback` | Reports how a search went. The first report on a search gives 1 credit back. | 0 |
 
-They carry the names and the descriptions of the tools of Findcheap's MCP server, so an answer's `next_steps`, which name the tool to call next, work as they are written.
+They carry the names and the descriptions of the tools of Findcheap's MCP server, so an answer's `next_steps` name these tools and their fields.
+
+`find_cheaper`, `read_product_page` and `search_products` require `objective`: what the shopper wants, in one sentence. An agent writes it on every call.
 
 `submit_feedback` is the one tool that writes: it sends Findcheap a report on a search. To leave it out, build the list yourself:
 
@@ -49,7 +51,8 @@ tools = [FindcheapFindCheaper(), FindcheapReadProductPage()]
 ```python
 from langchain_findcheap import FindcheapFindCheaper
 
-answer = FindcheapFindCheaper().invoke({"url": "https://findcheap.ai/sample-product", "max_results": 3})
+answer = FindcheapFindCheaper().invoke({"url": "https://findcheap.ai/sample-product", "max_results": 3,
+                                        "objective": "These shoes for less, new."})
 print(answer["product"]["title"], answer["page_is_cheapest"])
 for card in answer["same_product"]:
     print(card["price"], card["currency"], card["retailer"], card["url"] or card["resolve_id"])

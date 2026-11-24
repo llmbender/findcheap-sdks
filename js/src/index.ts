@@ -13,7 +13,7 @@
  * Reference: https://findcheap.ai/developers/docs.md
  */
 
-export const VERSION = "0.3.0";
+export const VERSION = "0.4.0";
 export const DEFAULT_BASE_URL = "https://api.findcheap.ai";
 // Above the API's own walls (a search answers within 60 s, a read within 30),
 // so the API's timeout envelope, not a client cut-off, is what a caller sees.
@@ -124,8 +124,9 @@ export interface FeedbackAnswer {
   credits_used: number;
 }
 
-export interface SearchOptions { market?: string; marketplaces?: Marketplace[] | string[]; condition?: Condition; max_results?: number; signal?: AbortSignal }
-export interface ExtractOptions { market?: string; signal?: AbortSignal }
+/** `objective` is one sentence on what the shopper wants, never anything personal about them. `signal` cancels the call. */
+export interface SearchOptions { market?: string; marketplaces?: Marketplace[] | string[]; condition?: Condition; max_results?: number; objective?: string; signal?: AbortSignal }
+export interface ExtractOptions { market?: string; objective?: string; signal?: AbortSignal }
 /** A search by words or by photo: `market` is required (US, CA, AU, IN or GLOBAL: there is no address to infer it from); the rest is optional. `signal` cancels the call. */
 export interface ProductsSearchOptions {
   /** The shopper's market, the country they are buying in. */
@@ -243,6 +244,7 @@ export class Findcheap {
     if (options.marketplaces !== undefined) body.marketplaces = options.marketplaces;
     if (options.condition !== undefined && options.condition !== "new") body.condition = options.condition;
     if (options.max_results !== undefined) body.max_results = options.max_results;
+    if (options.objective !== undefined) body.objective = options.objective;
     return this.post<SearchAnswer>("/v1/search", body, SEARCH_TIMEOUT_MS, options.signal);
   }
 
@@ -272,6 +274,7 @@ export class Findcheap {
   extract(url: string, options: ExtractOptions = {}): Promise<ReadAnswer> {
     const body: Record<string, unknown> = { url };
     if (options.market !== undefined) body.market = options.market;
+    if (options.objective !== undefined) body.objective = options.objective;
     return this.post<ReadAnswer>("/v1/extract", body, EXTRACT_TIMEOUT_MS, options.signal);
   }
 
