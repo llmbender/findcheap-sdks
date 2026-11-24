@@ -7,19 +7,23 @@ description: Findcheap finds where the product on a page is sold for less (the s
 
 Findcheap takes a product page's address and answers where that product is sold for less: the same product elsewhere (`same_product`) and acceptable equivalents (`similar_products`), cheapest first, each with price, retailer, link and any coupon. It also reads a product page without searching, and resolves a card's merchant link. When there is no page, it searches for products from a description in words and answers the listings that match, cheapest first.
 
-The reference: https://findcheap.ai/developers/docs.md. The MCP server's page: https://findcheap.ai/developers/mcp.md. OpenAPI spec: https://api.findcheap.ai/v1/openapi.json.
+- The reference: https://findcheap.ai/developers/docs.md
+- The MCP server's page: https://findcheap.ai/developers/mcp.md
+- OpenAPI spec: https://api.findcheap.ai/v1/openapi.json
 
 ## If you were asked to set Findcheap up
 
 Set up one Findcheap connection in the app you are running in, in this order, and reuse a working connection instead of adding a second one. If the user asked only for the API, or only for the MCP server, keep the set-up within that scope.
 
-1. **Plugin or sign-in (ChatGPT, Claude, Cursor).** In these apps, offer Findcheap's listing or sign-in for the active app and let the user complete the sign-in. No API key and no terminal are needed. Path E has the steps and the check.
+1. **Plugin or sign-in (ChatGPT, Claude, Cursor, Grok, the Gemini app).** In these apps, offer Findcheap's listing or sign-in for the active app and let the user complete the sign-in. No API key and no terminal are needed. Path E has the steps and the check.
 
    | App | How Findcheap is added |
    | --- | --- |
    | **ChatGPT** | [Add Findcheap to ChatGPT](https://chatgpt.com/plugins/plugin_asdk_app_6afa139e1fec81918f9f5d115c4e28aa) |
    | **Claude** | a custom connector that signs the user in (Path E) |
    | **Cursor** | an `mcp.json` entry that signs the user in (Path E) |
+   | **Grok** | a custom connector that signs the user in (Path E) |
+   | **Gemini app** | a custom app that signs the user in (Path E) |
 
 2. **MCP server (Claude Code, other MCP clients and coding assistants).** Reuse a working Findcheap connection: if `find_cheaper` is among your tools, under any prefix, it is connected. Otherwise add the server `https://mcp.findcheap.ai/mcp` (Streamable HTTP) through the app's own command or settings, with no API key, and let the user complete the sign-in in their browser. In Claude Code:
 
@@ -27,7 +31,16 @@ Set up one Findcheap connection in the app you are running in, in this order, an
    claude mcp add --transport http findcheap https://mcp.findcheap.ai/mcp
    ```
 
-   Then the user signs in: `/mcp` inside Claude Code, or `claude mcp login findcheap` in their own terminal. Where nobody can complete a sign-in in a browser (a background or cloud agent), use an API key instead: get one (Path C) and add the server with the key in the `Authorization: Bearer` header. In Claude Code, with the key loaded into the shell's environment:
+   Then the user signs in: `/mcp` inside Claude Code, or `claude mcp login findcheap` in their own terminal. In other apps:
+
+   | App | Add the server | Then the user signs in |
+   | --- | --- | --- |
+   | **Codex** (CLI, IDE extension and ChatGPT desktop app share it) | `codex mcp add findcheap --url https://mcp.findcheap.ai/mcp` | the same command prints the sign-in address, opens the browser and waits for the user; to sign in again later, `codex mcp login findcheap` |
+   | **VS Code / GitHub Copilot** | `{"mcpServers": {"findcheap": {"type": "http", "url": "https://mcp.findcheap.ai/mcp"}}}` in `~/.copilot/mcp-config.json`, or in `.mcp.json` at the workspace root | when VS Code asks, or Authenticate in the server's actions |
+   | **OpenCode** | `opencode mcp add findcheap --url https://mcp.findcheap.ai/mcp` | `opencode mcp auth findcheap`, which prints the sign-in address and waits for the user; or `/mcps` inside OpenCode |
+   | **Devin** (Desktop and CLI) | `devin mcp add findcheap https://mcp.findcheap.ai/mcp` | the same command prints the sign-in address, opens the browser and waits for the user; to sign in again later, `devin mcp login findcheap` |
+
+   Where nobody can complete a sign-in in a browser (a background or cloud agent), use an API key instead: get one (Path C) and add the server with the key in the `Authorization: Bearer` header. In Claude Code, with the key loaded into the shell's environment:
 
    ```bash
    claude mcp add --transport http findcheap https://mcp.findcheap.ai/mcp \
@@ -43,7 +56,7 @@ Add connections for other apps only when asked. Report readiness separately for 
 
 Choose the path that matches the task:
 
-- **Need Findcheap inside ChatGPT, Claude or Cursor** -> Path E (plugin and sign-in)
+- **Need Findcheap inside ChatGPT, Claude, Cursor, Grok or the Gemini app** -> Path E (plugin and sign-in)
 - **Need to find a product cheaper, or read a product page, during this session** -> Path A (live tools)
 - **Need to add Findcheap to an app or agent the user is building** -> Path B (app integration)
 - **Need more than one of the above** -> use the relevant paths in sequence
@@ -239,14 +252,16 @@ From code, the same report is `POST /v1/search/{request_id}/feedback`: the searc
 
 ---
 
-## Path E: Plugin and sign-in (ChatGPT, Claude, Cursor)
+## Path E: Plugin and sign-in (ChatGPT, Claude, Cursor, Grok, the Gemini app)
 
-Use this path to add Findcheap's ChatGPT plugin, or to connect Claude or Cursor by sign-in. It works without a terminal and without an API key. Adding the MCP server to a coding assistant with a key does not connect any of these accounts.
+Use this path to add Findcheap's ChatGPT plugin, or to connect Claude, Cursor, Grok or the Gemini app by sign-in. It works without a terminal and without an API key. Adding the MCP server to a coding assistant with a key does not connect any of these accounts.
 
 Set up the active app and reuse a working connection. Include other apps only when asked.
 
 - **ChatGPT.** Give the user the listing and the remaining step: open https://chatgpt.com/plugins/plugin_asdk_app_6afa139e1fec81918f9f5d115c4e28aa and add Findcheap.
 - **Claude (web, desktop or mobile).** The user opens Customize, then Connectors, and adds a custom connector: the name Findcheap, the server URL `https://mcp.findcheap.ai/mcp`, and under OAuth client "Use your own OAuth client" with this client ID (there is no secret): `d125ba2b-831c-403b-a456-a1141ef32231`
+- **Grok.** The user opens `https://grok.com/connectors`, chooses New Connector, then Custom, and enters the server URL `https://mcp.findcheap.ai/mcp`.
+- **Gemini app.** In the Gemini web app, `https://gemini.google.com`, the user opens Settings, then Connected Apps, and adds a custom app with the server URL `https://mcp.findcheap.ai/mcp`. Custom apps need a personal Google account in the US, 18 or over, the app in English and its activity history on; once added, Findcheap works in the Gemini mobile app too. Google asks to link the accounts before it sends the user to findcheap.ai. In a prompt, `@Findcheap` calls it.
 - **Cursor.** Add this server to `.cursor/mcp.json` (or the global `~/.cursor/mcp.json`), keeping any servers already there:
 
   ```json
